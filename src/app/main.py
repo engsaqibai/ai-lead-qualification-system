@@ -1,6 +1,8 @@
-def main():
-    print("AI Lead Qualification System started")
+from fastapi import FastAPI
+
+app = FastAPI(title="AI Lead Qualification System")
 
 
-if __name__ == "__main__":
-    main()
+@app.get("/health")
+def health_check():
+    return {"status": "healthy"}
