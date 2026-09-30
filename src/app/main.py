@@ -1,8 +1,14 @@
 from fastapi import FastAPI
 
-app = FastAPI(title="AI Lead Qualification System")
+from src.app.config import settings
+
+
+app = FastAPI(title=settings.app_name)
 
 
 @app.get("/health")
 def health_check():
-    return {"status": "healthy"}
+    return {
+        "status": "healthy",
+        "environment": settings.environment,
+    }
