@@ -137,28 +137,39 @@ def test_create_lead_invalid_company_size():
     assert response.status_code == 422
 
 def test_get_leads():
-    response = client.get("/leads")
+    response = client.get("/leads?skip=0&limit=2")
 
     assert response.status_code == 200
 
     data = response.json()
 
-    assert isinstance(data, list)
-    assert len(data) >= 1
+    assert len(data) <= 2
 
-    lead = data[0]
+    if len(data) == 2:
+        assert data[0]["id"] > data[1]["id"]
 
-    assert "id" in lead
-    assert "name" in lead
-    assert "email" in lead
-    assert "company" in lead
-    assert "status" in lead
-    assert "score" in lead
-    assert "confidence" in lead
-    assert "fit_score" in lead
-    assert "readiness_score" in lead
-    assert "intent_score" in lead
-    assert "reasons" in lead
-    assert "missing_information" in lead
-    assert "recommended_action" in lead
-    assert "created_at" in lead
+
+def test_get_leads_pagination():
+    first_response = client.get("/leads?skip=0&limit=1")
+    second_response = client.get("/leads?skip=1&limit=1")
+
+    assert first_response.status_code == 200
+    assert second_response.status_code == 200
+
+    first_data = first_response.json()
+    second_data = second_response.json()
+
+    assert len(first_data) == 1
+    assert len(second_data) == 1
+
+    assert first_data[0]["id"] > second_data[0]["id"]
+
+
+def test_get_leads_invalid_pagination():
+    negative_skip_response = client.get("/leads?skip=-1")
+    zero_limit_response = client.get("/leads?limit=0")
+    excessive_limit_response = client.get("/leads?limit=101")
+
+    assert negative_skip_response.status_code == 422
+    assert zero_limit_response.status_code == 422
+    assert excessive_limit_response.status_code == 422

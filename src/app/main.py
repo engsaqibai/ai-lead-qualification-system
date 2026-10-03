@@ -1,18 +1,17 @@
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Query
 from sqlalchemy.orm import Session
 
 from src.app.config import settings
 from src.app.db.database import get_db
 from src.app.db.models import LeadModel
-from src.app.schemas import Lead, QualificationConfig, QualificationResult
-from src.app.services.qualification import qualify_lead
-
 from src.app.schemas import (
     Lead,
     LeadResponse,
     QualificationConfig,
     QualificationResult,
 )
+from src.app.services.qualification import qualify_lead
+
 
 app = FastAPI(title=settings.app_name)
 
@@ -83,9 +82,20 @@ def create_lead(
 
     return result
 
+
 @app.get("/leads", response_model=list[LeadResponse])
-def get_leads(db: Session = Depends(get_db)):
-    leads = db.query(LeadModel).order_by(LeadModel.id.desc()).all()
+def get_leads(
+    db: Session = Depends(get_db),
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=20, ge=1, le=100),
+):
+    leads = (
+        db.query(LeadModel)
+        .order_by(LeadModel.id.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
     return [
         LeadResponse(
