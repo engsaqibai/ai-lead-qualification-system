@@ -358,3 +358,59 @@ def test_review_nonexistent_lead():
 
     assert response.status_code == 404
     assert response.json() == {"detail": "Lead not found"}
+
+def test_get_lead_by_id():
+    payload = {
+        "name": "Single Lead Test",
+        "email": "single-lead@example.com",
+        "company": "Single Lead Tech",
+        "industry": "Software",
+        "job_title": "CTO",
+        "company_size": 200,
+        "annual_revenue": 5_000_000,
+        "problem": "We need better lead qualification.",
+        "desired_outcome": "Automatically prioritize high-value leads.",
+        "timeline": "Within 3 months",
+        "budget": 25_000,
+        "decision_role": "Decision Maker",
+        "message": "We want to evaluate the solution.",
+    }
+
+    create_response = client.post("/leads", json=payload)
+
+    assert create_response.status_code == 200
+
+    leads_response = client.get(
+        "/leads",
+        params={"limit": 100},
+    )
+
+    assert leads_response.status_code == 200
+
+    lead = next(
+        lead
+        for lead in leads_response.json()
+        if lead["email"] == payload["email"]
+    )
+
+    response = client.get(f"/leads/{lead['id']}")
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["id"] == lead["id"]
+    assert data["email"] == payload["email"]
+    assert data["name"] == payload["name"]
+    assert data["company"] == payload["company"]
+    assert data["status"] == lead["status"]
+    assert data["score"] == lead["score"]
+    assert data["reviewed"] is False
+    assert data["reviewed_at"] is None
+
+
+def test_get_nonexistent_lead():
+    response = client.get("/leads/999999")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Lead not found"}
