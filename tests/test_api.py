@@ -223,6 +223,87 @@ def test_review_lead():
     assert reviewed_lead["reviewed"] is True
     assert reviewed_lead["reviewed_at"] is not None
 
+def test_get_leads_reviewed_filter():
+    payload = {
+        "name": "Filter Test Lead",
+        "email": "filter-test@example.com",
+        "company": "Filter Tech",
+        "industry": "Software",
+        "job_title": "CTO",
+        "company_size": 200,
+        "annual_revenue": 5_000_000,
+        "problem": "We need better lead qualification.",
+        "desired_outcome": "Automatically prioritize qualified leads.",
+        "timeline": "Within 3 months",
+        "budget": 25_000,
+        "decision_role": "Decision Maker",
+        "message": "We want to evaluate the solution.",
+    }
+
+    create_response = client.post("/leads", json=payload)
+
+    assert create_response.status_code == 200
+
+    leads_response = client.get(
+        "/leads",
+        params={"reviewed": False, "limit": 100},
+    )
+
+    assert leads_response.status_code == 200
+
+    unreviewed_leads = leads_response.json()
+
+    lead = next(
+        lead
+        for lead in unreviewed_leads
+        if lead["email"] == payload["email"]
+    )
+
+    assert lead["reviewed"] is False
+
+    review_response = client.patch(
+        f"/leads/{lead['id']}/review"
+    )
+
+    assert review_response.status_code == 200
+
+    reviewed_response = client.get(
+        "/leads",
+        params={"reviewed": True, "limit": 100},
+    )
+
+    assert reviewed_response.status_code == 200
+
+    reviewed_leads = reviewed_response.json()
+
+    reviewed_lead = next(
+        lead
+        for lead in reviewed_leads
+        if lead["email"] == payload["email"]
+    )
+
+    assert reviewed_lead["reviewed"] is True
+
+
+def test_get_leads_reviewed_filter_with_pagination():
+    response = client.get(
+        "/leads",
+        params={
+            "reviewed": False,
+            "skip": 0,
+            "limit": 2,
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert len(data) <= 2
+
+    for lead in data:
+        assert lead["reviewed"] is False
+
 def test_review_nonexistent_lead():
     response = client.patch("/leads/999999/review")
 

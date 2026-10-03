@@ -95,10 +95,18 @@ def get_leads(
     db: Session = Depends(get_db),
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=20, ge=1, le=100),
+    reviewed: bool | None = Query(default=None),
 ):
-    leads = (
+    query = (
         db.query(LeadModel)
         .order_by(LeadModel.id.desc())
+    )
+
+    if reviewed is not None:
+        query = query.filter(LeadModel.reviewed == reviewed)
+
+    leads = (
+        query
         .offset(skip)
         .limit(limit)
         .all()
