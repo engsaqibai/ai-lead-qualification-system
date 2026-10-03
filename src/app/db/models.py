@@ -44,3 +44,12 @@ class LeadModel(Base):
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
     )
+    reviewed: Mapped[bool] = mapped_column(
+        default=False,
+        nullable=False,
+    )
+
+    reviewed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )

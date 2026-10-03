@@ -95,3 +95,6 @@ class LeadResponse(BaseModel):
     recommended_action: str
 
     created_at: datetime
+
+    reviewed: bool
+    reviewed_at: datetime | None

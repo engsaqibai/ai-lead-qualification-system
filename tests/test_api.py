@@ -173,3 +173,58 @@ def test_get_leads_invalid_pagination():
     assert negative_skip_response.status_code == 422
     assert zero_limit_response.status_code == 422
     assert excessive_limit_response.status_code == 422
+
+def test_review_lead():
+    payload = {
+        "name": "Review Test Lead",
+        "email": "review-test@example.com",
+        "company": "Review Tech",
+        "industry": "Software",
+        "job_title": "CTO",
+        "company_size": 200,
+        "annual_revenue": 5_000_000,
+        "problem": "Our sales team needs automated lead qualification.",
+        "desired_outcome": "Prioritize qualified leads automatically.",
+        "timeline": "Within 3 months",
+        "budget": 25_000,
+        "decision_role": "Decision Maker",
+        "message": "We want to evaluate the solution.",
+    }
+
+    create_response = client.post("/leads", json=payload)
+
+    assert create_response.status_code == 200
+
+    leads_response = client.get(
+        "/leads",
+        params={"limit": 100},
+    )
+
+    assert leads_response.status_code == 200
+
+    lead = next(
+        lead
+        for lead in leads_response.json()
+        if lead["email"] == payload["email"]
+    )
+
+    assert lead["reviewed"] is False
+    assert lead["reviewed_at"] is None
+
+    review_response = client.patch(
+        f"/leads/{lead['id']}/review"
+    )
+
+    assert review_response.status_code == 200
+
+    reviewed_lead = review_response.json()
+
+    assert reviewed_lead["id"] == lead["id"]
+    assert reviewed_lead["reviewed"] is True
+    assert reviewed_lead["reviewed_at"] is not None
+
+def test_review_nonexistent_lead():
+    response = client.patch("/leads/999999/review")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Lead not found"}

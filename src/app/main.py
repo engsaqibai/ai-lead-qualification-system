@@ -1,4 +1,7 @@
-from fastapi import Depends, FastAPI, Query
+from datetime import datetime, timezone
+
+from fastapi import Depends, FastAPI, HTTPException, Query
+
 from sqlalchemy.orm import Session
 
 from src.app.config import settings
@@ -131,6 +134,64 @@ def get_leads(
             ),
             recommended_action=lead.recommended_action,
             created_at=lead.created_at,
+            reviewed=lead.reviewed,
+            reviewed_at=lead.reviewed_at,
         )
         for lead in leads
     ]
+
+@app.patch("/leads/{lead_id}/review", response_model=LeadResponse)
+def review_lead(
+    lead_id: int,
+    db: Session = Depends(get_db),
+):
+    lead = db.get(LeadModel, lead_id)
+
+    if lead is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Lead not found",
+        )
+
+    lead.reviewed = True
+    lead.reviewed_at = datetime.now(timezone.utc)
+
+    try:
+        db.commit()
+        db.refresh(lead)
+    except Exception:
+        db.rollback()
+        raise
+
+    return LeadResponse(
+        id=lead.id,
+        name=lead.name,
+        email=lead.email,
+        company=lead.company,
+        industry=lead.industry,
+        job_title=lead.job_title,
+        company_size=lead.company_size,
+        annual_revenue=lead.annual_revenue,
+        problem=lead.problem,
+        desired_outcome=lead.desired_outcome,
+        timeline=lead.timeline,
+        budget=lead.budget,
+        decision_role=lead.decision_role,
+        message=lead.message,
+        status=lead.status,
+        score=lead.score,
+        confidence=lead.confidence,
+        fit_score=lead.fit_score,
+        readiness_score=lead.readiness_score,
+        intent_score=lead.intent_score,
+        reasons=lead.reasons.split("\n") if lead.reasons else [],
+        missing_information=(
+            lead.missing_information.split("\n")
+            if lead.missing_information
+            else []
+        ),
+        recommended_action=lead.recommended_action,
+        created_at=lead.created_at,
+        reviewed=lead.reviewed,
+        reviewed_at=lead.reviewed_at,
+    )
