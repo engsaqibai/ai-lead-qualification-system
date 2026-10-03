@@ -87,7 +87,10 @@ def create_lead(
         db.commit()
     except Exception:
         db.rollback()
-        raise
+        raise HTTPException(
+        status_code=500,
+        detail="Failed to create lead",
+    )
 
     return result
 

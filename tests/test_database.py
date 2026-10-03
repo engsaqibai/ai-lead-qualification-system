@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from src.app.db.database import SessionLocal
+from src.app.db.database import SessionLocal, get_db
 from src.app.db.models import LeadModel
 from src.app.main import app
 
@@ -62,3 +62,49 @@ def test_create_lead_persists_to_database():
 
     finally:
         db.close()
+
+def test_create_lead_rolls_back_on_database_error():
+    payload = {
+        "name": "Rollback Test Lead",
+        "email": "rollback-test@example.com",
+        "company": "Rollback Tech",
+        "industry": "Software",
+        "job_title": "CTO",
+        "company_size": 200,
+        "annual_revenue": 5_000_000,
+        "problem": "We need better lead qualification.",
+        "desired_outcome": "Automatically prioritize qualified leads.",
+        "timeline": "Within 3 months",
+        "budget": 25_000,
+        "decision_role": "Decision Maker",
+        "message": "We want to evaluate the solution.",
+    }
+
+    class FailingSession:
+        def add(self, record):
+            self.record = record
+
+        def commit(self):
+            raise Exception("database failure")
+
+        def rollback(self):
+            self.rolled_back = True
+
+        def close(self):
+            pass
+
+    failing_session = FailingSession()
+
+    def override_get_db():
+        yield failing_session
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    try:
+        response = client.post("/leads", json=payload)
+
+        assert response.status_code == 500
+        assert failing_session.rolled_back is True
+
+    finally:
+        app.dependency_overrides.clear()
