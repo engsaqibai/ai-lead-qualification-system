@@ -98,3 +98,17 @@ class LeadResponse(BaseModel):
 
     reviewed: bool
     reviewed_at: datetime | None
+
+class LeadActivityCreate(BaseModel):
+    activity_type: str
+    outcome: str | None = None
+    notes: str | None = None
+
+
+class LeadActivityResponse(BaseModel):
+    id: int
+    lead_id: int
+    activity_type: str
+    outcome: str | None
+    notes: str | None
+    created_at: datetime

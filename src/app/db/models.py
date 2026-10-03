@@ -53,3 +53,34 @@ class LeadModel(Base):
         DateTime(timezone=True),
         nullable=True,
     )
+
+class LeadActivityModel(Base):
+    __tablename__ = "lead_activities"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+
+    lead_id: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        index=True,
+    )
+
+    activity_type: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+    )
+
+    outcome: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    notes: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+    )

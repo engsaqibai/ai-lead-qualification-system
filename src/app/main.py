@@ -6,9 +6,11 @@ from sqlalchemy.orm import Session
 
 from src.app.config import settings
 from src.app.db.database import get_db
-from src.app.db.models import LeadModel
+from src.app.db.models import LeadActivityModel, LeadModel
 from src.app.schemas import (
     Lead,
+    LeadActivityCreate,
+    LeadActivityResponse,
     LeadResponse,
     QualificationConfig,
     QualificationResult,
@@ -178,3 +180,71 @@ def review_lead(
         )
 
     return lead_to_response(lead)
+
+@app.post(
+    "/leads/{lead_id}/activities",
+    response_model=LeadActivityResponse,
+)
+def create_lead_activity(
+    lead_id: int,
+    activity: LeadActivityCreate,
+    db: Session = Depends(get_db),
+):
+    lead = db.get(LeadModel, lead_id)
+
+    if lead is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Lead not found",
+        )
+
+    activity_record = LeadActivityModel(
+        lead_id=lead_id,
+        activity_type=activity.activity_type,
+        outcome=activity.outcome,
+        notes=activity.notes,
+    )
+
+    try:
+        db.add(activity_record)
+        db.commit()
+        db.refresh(activity_record)
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to create lead activity",
+        )
+
+    return activity_record
+
+@app.get(
+    "/leads/{lead_id}/activities",
+    response_model=list[LeadActivityResponse],
+)
+def get_lead_activities(
+    lead_id: int,
+    db: Session = Depends(get_db),
+):
+    lead = db.get(LeadModel, lead_id)
+
+    if lead is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Lead not found",
+        )
+
+    try:
+        activities = (
+            db.query(LeadActivityModel)
+            .filter(LeadActivityModel.lead_id == lead_id)
+            .order_by(LeadActivityModel.id.desc())
+            .all()
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to retrieve lead activities",
+        )
+
+    return activities

@@ -414,3 +414,119 @@ def test_get_nonexistent_lead():
 
     assert response.status_code == 404
     assert response.json() == {"detail": "Lead not found"}
+
+def test_create_lead_activity():
+    lead_response = client.post(
+        "/leads",
+        json={
+            "name": "Activity Test",
+            "email": "activity@example.com",
+            "company": "Activity Corp",
+            "industry": "Software",
+            "job_title": "CEO",
+            "company_size": 100,
+            "annual_revenue": 2_000_000,
+            "problem": "Need better lead qualification",
+            "desired_outcome": "Improve sales efficiency",
+            "timeline": "This month",
+            "budget": 5000,
+            "decision_role": "Decision Maker",
+            "message": "We need a solution.",
+        },
+    )
+
+    assert lead_response.status_code == 200
+
+    lead_id = client.get("/leads").json()[0]["id"]
+
+    response = client.post(
+        f"/leads/{lead_id}/activities",
+        json={
+            "activity_type": "email",
+            "outcome": "replied",
+            "notes": "Lead replied positively.",
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["lead_id"] == lead_id
+    assert data["activity_type"] == "email"
+    assert data["outcome"] == "replied"
+    assert data["notes"] == "Lead replied positively."
+    assert "created_at" in data
+
+
+def test_get_lead_activities():
+    lead_response = client.post(
+        "/leads",
+        json={
+            "name": "Activities Test",
+            "email": "activities@example.com",
+            "company": "Activities Corp",
+            "industry": "Software",
+            "job_title": "CTO",
+            "company_size": 100,
+            "annual_revenue": 2_000_000,
+            "problem": "Need better qualification",
+            "desired_outcome": "Increase conversions",
+            "timeline": "This month",
+            "budget": 5000,
+            "decision_role": "Decision Maker",
+            "message": "We are evaluating solutions.",
+        },
+    )
+
+    assert lead_response.status_code == 200
+
+    lead_id = client.get("/leads").json()[0]["id"]
+
+    client.post(
+        f"/leads/{lead_id}/activities",
+        json={
+            "activity_type": "call",
+            "outcome": "connected",
+            "notes": "Discovery call completed.",
+        },
+    )
+
+    client.post(
+        f"/leads/{lead_id}/activities",
+        json={
+            "activity_type": "email",
+            "outcome": "replied",
+            "notes": "Follow-up email received.",
+        },
+    )
+
+    response = client.get(f"/leads/{lead_id}/activities")
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert len(data) == 2
+    assert all(activity["lead_id"] == lead_id for activity in data)
+
+
+def test_create_lead_activity_for_nonexistent_lead():
+    response = client.post(
+        "/leads/999999/activities",
+        json={
+            "activity_type": "email",
+            "outcome": "sent",
+            "notes": "Test activity.",
+        },
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Lead not found"
+
+
+def test_get_lead_activities_for_nonexistent_lead():
+    response = client.get("/leads/999999/activities")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Lead not found"
