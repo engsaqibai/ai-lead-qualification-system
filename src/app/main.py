@@ -135,7 +135,13 @@ def get_lead(
     lead_id: int,
     db: Session = Depends(get_db),
 ):
-    lead = db.get(LeadModel, lead_id)
+    try:
+        lead = db.get(LeadModel, lead_id)
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to retrieve lead",
+        )
 
     if lead is None:
         raise HTTPException(
