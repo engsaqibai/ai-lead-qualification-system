@@ -77,8 +77,12 @@ def create_lead(
         recommended_action=result.recommended_action,
     )
 
-    db.add(lead_record)
-    db.commit()
+    try:
+        db.add(lead_record)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
 
     return result
 
