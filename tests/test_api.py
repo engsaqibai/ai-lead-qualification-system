@@ -304,6 +304,55 @@ def test_get_leads_reviewed_filter_with_pagination():
     for lead in data:
         assert lead["reviewed"] is False
 
+def test_get_leads_status_filter():
+    qualified_response = client.get(
+        "/leads",
+        params={
+            "status": "qualified",
+            "limit": 100,
+        },
+    )
+
+    assert qualified_response.status_code == 200
+
+    qualified_leads = qualified_response.json()
+
+    for lead in qualified_leads:
+        assert lead["status"] == "qualified"
+
+    disqualified_response = client.get(
+        "/leads",
+        params={
+            "status": "disqualified",
+            "limit": 100,
+        },
+    )
+
+    assert disqualified_response.status_code == 200
+
+    disqualified_leads = disqualified_response.json()
+
+    for lead in disqualified_leads:
+        assert lead["status"] == "disqualified"
+
+def test_get_leads_status_and_reviewed_filters():
+    response = client.get(
+        "/leads",
+        params={
+            "status": "qualified",
+            "reviewed": False,
+            "limit": 100,
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    for lead in data:
+        assert lead["status"] == "qualified"
+        assert lead["reviewed"] is False
+
 def test_review_nonexistent_lead():
     response = client.patch("/leads/999999/review")
 

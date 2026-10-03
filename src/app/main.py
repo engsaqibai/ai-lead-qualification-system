@@ -96,6 +96,7 @@ def get_leads(
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=20, ge=1, le=100),
     reviewed: bool | None = Query(default=None),
+    status: str | None = Query(default=None),
 ):
     query = (
         db.query(LeadModel)
@@ -104,6 +105,9 @@ def get_leads(
 
     if reviewed is not None:
         query = query.filter(LeadModel.reviewed == reviewed)
+    
+    if status is not None:
+        query = query.filter(LeadModel.status == status)
 
     leads = (
         query
