@@ -108,3 +108,57 @@ def test_create_lead_rolls_back_on_database_error():
 
     finally:
         app.dependency_overrides.clear()
+
+def test_review_lead_returns_500_on_database_error():
+    class FailingSession:
+        def get(self, model, lead_id):
+            return LeadModel(
+                id=lead_id,
+                name="Review Rollback Test",
+                email="review-rollback@example.com",
+                company="Rollback Tech",
+                industry="Software",
+                job_title="CTO",
+                company_size=200,
+                annual_revenue=5_000_000,
+                problem="We need better lead qualification.",
+                desired_outcome="Automatically prioritize qualified leads.",
+                timeline="Within 3 months",
+                budget=25_000,
+                decision_role="Decision Maker",
+                message="We want to evaluate the solution.",
+                status="qualified",
+                score=90,
+                confidence=95,
+                fit_score=25,
+                readiness_score=20,
+                intent_score=15,
+                reasons="Strong fit",
+                missing_information="",
+                recommended_action="Contact immediately",
+            )
+
+        def commit(self):
+            raise Exception("database failure")
+
+        def rollback(self):
+            self.rolled_back = True
+
+        def refresh(self, record):
+            pass
+
+    failing_session = FailingSession()
+
+    def override_get_db():
+        yield failing_session
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    try:
+        response = client.patch("/leads/999/review")
+
+        assert response.status_code == 500
+        assert response.json()["detail"] == "Failed to review lead"
+        assert failing_session.rolled_back is True
+    finally:
+        app.dependency_overrides.clear()

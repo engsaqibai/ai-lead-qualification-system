@@ -159,6 +159,9 @@ def review_lead(
         db.refresh(lead)
     except Exception:
         db.rollback()
-        raise
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to review lead",
+        )
 
     return lead_to_response(lead)
