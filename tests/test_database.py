@@ -162,3 +162,21 @@ def test_review_lead_returns_500_on_database_error():
         assert failing_session.rolled_back is True
     finally:
         app.dependency_overrides.clear()
+
+def test_get_leads_returns_500_on_database_error():
+    class FailingSession:
+        def query(self, model):
+            raise Exception("database failure")
+
+    failing_session = FailingSession()
+
+    def override_get_db():
+        yield failing_session
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    try:
+        response = client.get("/leads")
+        assert response.status_code == 500
+    finally:
+        app.dependency_overrides.clear()

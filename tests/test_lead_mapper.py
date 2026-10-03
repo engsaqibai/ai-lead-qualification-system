@@ -78,7 +78,7 @@ def test_lead_to_response_handles_missing_information():
         budget=None,
         decision_role="Influencer",
         message="We are researching solutions.",
-        status="needs_review",
+        status="review",
         score=60,
         confidence=75,
         fit_score=80,

@@ -90,7 +90,7 @@ def create_lead(
         raise HTTPException(
         status_code=500,
         detail="Failed to create lead",
-    )
+        )
 
     return result
 
@@ -103,23 +103,30 @@ def get_leads(
     reviewed: bool | None = Query(default=None),
     status: str | None = Query(default=None),
 ):
-    query = (
-        db.query(LeadModel)
-        .order_by(LeadModel.id.desc())
-    )
+    try:
+        query = (
+            db.query(LeadModel)
+            .order_by(LeadModel.id.desc())
+        )
 
-    if reviewed is not None:
-        query = query.filter(LeadModel.reviewed == reviewed)
-    
-    if status is not None:
-        query = query.filter(LeadModel.status == status)
+        if reviewed is not None:
+            query = query.filter(LeadModel.reviewed == reviewed)
 
-    leads = (
-        query
-        .offset(skip)
-        .limit(limit)
-        .all()
-    )
+        if status is not None:
+            query = query.filter(LeadModel.status == status)
+
+        leads = (
+            query
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to retrieve leads",
+        )
 
     return [lead_to_response(lead) for lead in leads]
 
