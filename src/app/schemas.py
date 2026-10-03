@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, EmailStr, Field, model_validator
 
 
@@ -64,3 +66,32 @@ class QualificationConfig(BaseModel):
             )
 
         return self
+
+class LeadResponse(BaseModel):
+    id: int
+    name: str
+    email: EmailStr
+    company: str
+    industry: str
+    job_title: str
+    company_size: int
+    annual_revenue: float | None
+    problem: str
+    desired_outcome: str
+    timeline: str | None
+    budget: float | None
+    decision_role: str
+    message: str
+
+    status: str
+    score: int
+    confidence: int
+    fit_score: int
+    readiness_score: int
+    intent_score: int
+
+    reasons: list[str]
+    missing_information: list[str]
+    recommended_action: str
+
+    created_at: datetime

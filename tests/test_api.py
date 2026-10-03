@@ -135,3 +135,30 @@ def test_create_lead_invalid_company_size():
     response = client.post("/leads", json=payload)
 
     assert response.status_code == 422
+
+def test_get_leads():
+    response = client.get("/leads")
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert isinstance(data, list)
+    assert len(data) >= 1
+
+    lead = data[0]
+
+    assert "id" in lead
+    assert "name" in lead
+    assert "email" in lead
+    assert "company" in lead
+    assert "status" in lead
+    assert "score" in lead
+    assert "confidence" in lead
+    assert "fit_score" in lead
+    assert "readiness_score" in lead
+    assert "intent_score" in lead
+    assert "reasons" in lead
+    assert "missing_information" in lead
+    assert "recommended_action" in lead
+    assert "created_at" in lead
