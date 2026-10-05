@@ -101,3 +101,42 @@ def test_lead_to_response_handles_missing_information():
     ]
     assert response.reviewed is False
     assert response.reviewed_at is None
+
+def test_lead_to_response_maps_next_action_fields():
+    next_action_at = datetime.now(timezone.utc)
+
+    lead = LeadModel(
+        id=3,
+        name="Next Action Lead",
+        email="next-action@example.com",
+        company="Next Action Tech",
+        industry="Software",
+        job_title="CTO",
+        company_size=200,
+        annual_revenue=5_000_000,
+        problem="We need automated lead qualification.",
+        desired_outcome="Prioritize qualified leads.",
+        timeline="Within 3 months",
+        budget=25_000,
+        decision_role="Decision Maker",
+        message="We want to evaluate the solution.",
+        status="qualified",
+        score=90,
+        confidence=97,
+        fit_score=100,
+        readiness_score=90,
+        intent_score=90,
+        reasons="Strong ICP fit",
+        missing_information="",
+        recommended_action="Route to sales for direct follow-up.",
+        next_action="Schedule discovery call",
+        next_action_at=next_action_at,
+        created_at=datetime.now(timezone.utc),
+        reviewed=False,
+        reviewed_at=None,
+    )
+
+    response = lead_to_response(lead)
+
+    assert response.next_action == "Schedule discovery call"
+    assert response.next_action_at == next_action_at

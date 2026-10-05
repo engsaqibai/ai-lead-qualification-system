@@ -99,6 +99,13 @@ class LeadResponse(BaseModel):
     reviewed: bool
     reviewed_at: datetime | None
 
+    next_action: str | None
+    next_action_at: datetime | None
+
+class LeadNextActionUpdate(BaseModel):
+    next_action: str = Field(min_length=1, max_length=500)
+    next_action_at: datetime | None = None
+
 class LeadActivityCreate(BaseModel):
     activity_type: str
     outcome: str | None = None

@@ -11,6 +11,7 @@ from src.app.schemas import (
     Lead,
     LeadActivityCreate,
     LeadActivityResponse,
+    LeadNextActionUpdate,
     LeadResponse,
     QualificationConfig,
     QualificationResult,
@@ -82,6 +83,8 @@ def create_lead(
         reasons="\n".join(result.reasons),
         missing_information="\n".join(result.missing_information),
         recommended_action=result.recommended_action,
+        next_action=result.recommended_action,
+        next_action_at=None,
     )
 
     try:
@@ -149,6 +152,44 @@ def get_lead(
         raise HTTPException(
             status_code=404,
             detail="Lead not found",
+        )
+
+    return lead_to_response(lead)
+
+@app.patch(
+    "/leads/{lead_id}/next-action",
+    response_model=LeadResponse,
+)
+def update_lead_next_action(
+    lead_id: int,
+    action: LeadNextActionUpdate,
+    db: Session = Depends(get_db),
+):
+    try:
+        lead = db.get(LeadModel, lead_id)
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to retrieve lead",
+        )
+
+    if lead is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Lead not found",
+        )
+
+    lead.next_action = action.next_action
+    lead.next_action_at = action.next_action_at
+
+    try:
+        db.commit()
+        db.refresh(lead)
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to update lead next action",
         )
 
     return lead_to_response(lead)

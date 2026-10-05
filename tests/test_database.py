@@ -4,6 +4,7 @@ from src.app.db.database import SessionLocal, get_db
 from src.app.db.models import LeadModel
 from src.app.main import app
 
+from datetime import datetime, timezone
 
 client = TestClient(app)
 
@@ -319,6 +320,116 @@ def test_create_lead_activity_returns_500_on_database_error():
         assert response.status_code == 500
         assert response.json()["detail"] == (
             "Failed to create lead activity"
+        )
+        assert failing_session.rolled_back is True
+
+    finally:
+        app.dependency_overrides.clear()
+
+def test_update_lead_next_action_persists_to_database():
+    lead_payload = {
+        "name": "Next Action Database Test",
+        "email": "next-action-database@example.com",
+        "company": "Next Action Tech",
+        "industry": "Software",
+        "job_title": "CTO",
+        "company_size": 200,
+        "annual_revenue": 5_000_000,
+        "problem": "We need better lead qualification.",
+        "desired_outcome": "Automatically prioritize qualified leads.",
+        "timeline": "Within 3 months",
+        "budget": 25_000,
+        "decision_role": "Decision Maker",
+        "message": "We are evaluating solutions.",
+    }
+
+    create_response = client.post(
+        "/leads",
+        json=lead_payload,
+    )
+
+    assert create_response.status_code == 200
+
+    db = SessionLocal()
+
+    try:
+        lead = (
+            db.query(LeadModel)
+            .filter(LeadModel.email == lead_payload["email"])
+            .first()
+        )
+
+        assert lead is not None
+
+        lead.next_action = "Schedule discovery call"
+        lead.next_action_at = datetime.now(timezone.utc)
+
+        db.commit()
+        db.refresh(lead)
+
+        assert lead.next_action == "Schedule discovery call"
+        assert lead.next_action_at is not None
+
+    finally:
+        db.close()
+
+def test_update_lead_next_action_returns_500_on_database_error():
+    class FailingSession:
+        def get(self, model, lead_id):
+            return LeadModel(
+                id=lead_id,
+                name="Next Action Rollback Test",
+                email="next-action-rollback@example.com",
+                company="Rollback Tech",
+                industry="Software",
+                job_title="CTO",
+                company_size=200,
+                annual_revenue=5_000_000,
+                problem="We need better lead qualification.",
+                desired_outcome="Automatically prioritize qualified leads.",
+                timeline="Within 3 months",
+                budget=25_000,
+                decision_role="Decision Maker",
+                message="We want to evaluate the solution.",
+                status="qualified",
+                score=90,
+                confidence=95,
+                fit_score=25,
+                readiness_score=20,
+                intent_score=15,
+                reasons="Strong fit",
+                missing_information="",
+                recommended_action="Contact immediately",
+            )
+
+        def commit(self):
+            raise Exception("database failure")
+
+        def rollback(self):
+            self.rolled_back = True
+
+        def refresh(self, record):
+            pass
+
+    failing_session = FailingSession()
+
+    def override_get_db():
+        yield failing_session
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    try:
+        response = client.patch(
+            "/leads/999/next-action",
+            json={
+                "next_action": "Schedule discovery call",
+                "next_action_at": "2026-10-10T10:00:00Z",
+            },
+        )
+
+        assert response.status_code == 500
+        assert response.json()["detail"] == (
+            "Failed to update lead next action"
         )
         assert failing_session.rolled_back is True
 

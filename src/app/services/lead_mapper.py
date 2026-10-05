@@ -34,4 +34,6 @@ def lead_to_response(lead: LeadModel) -> LeadResponse:
         created_at=lead.created_at,
         reviewed=lead.reviewed,
         reviewed_at=lead.reviewed_at,
+        next_action=lead.next_action,
+        next_action_at=lead.next_action_at,
     )

@@ -54,6 +54,16 @@ class LeadModel(Base):
         nullable=True,
     )
 
+    next_action: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    next_action_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
 class LeadActivityModel(Base):
     __tablename__ = "lead_activities"
 

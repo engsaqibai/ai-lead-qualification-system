@@ -530,3 +530,76 @@ def test_get_lead_activities_for_nonexistent_lead():
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Lead not found"
+
+def test_update_lead_next_action():
+    payload = {
+        "name": "Next Action Test",
+        "email": "next-action@example.com",
+        "company": "Next Action Tech",
+        "industry": "Software",
+        "job_title": "CTO",
+        "company_size": 200,
+        "annual_revenue": 5_000_000,
+        "problem": "We need better lead qualification.",
+        "desired_outcome": "Prioritize high-value leads.",
+        "timeline": "Within 3 months",
+        "budget": 25_000,
+        "decision_role": "Decision Maker",
+        "message": "We want to evaluate the solution.",
+    }
+
+    create_response = client.post("/leads", json=payload)
+
+    assert create_response.status_code == 200
+
+    leads_response = client.get(
+        "/leads",
+        params={"limit": 100},
+    )
+
+    lead = next(
+        lead
+        for lead in leads_response.json()
+        if lead["email"] == payload["email"]
+    )
+
+    response = client.patch(
+        f"/leads/{lead['id']}/next-action",
+        json={
+            "next_action": "Book discovery call",
+            "next_action_at": "2026-10-06T15:00:00Z",
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["id"] == lead["id"]
+    assert data["next_action"] == "Book discovery call"
+    assert data["next_action_at"] is not None
+
+    assert data["recommended_action"] != data["next_action"]
+
+def test_update_next_action_for_nonexistent_lead():
+    response = client.patch(
+        "/leads/999999/next-action",
+        json={
+            "next_action": "Book discovery call",
+            "next_action_at": "2026-10-06T15:00:00Z",
+        },
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Lead not found"}
+
+def test_update_next_action_with_empty_action():
+    response = client.patch(
+        "/leads/999999/next-action",
+        json={
+            "next_action": "",
+            "next_action_at": None,
+        },
+    )
+
+    assert response.status_code == 422
