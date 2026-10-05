@@ -106,6 +106,15 @@ class LeadNextActionUpdate(BaseModel):
     next_action: str = Field(min_length=1, max_length=500)
     next_action_at: datetime | None = None
 
+class SalesActionResponse(BaseModel):
+    lead_id: int
+    name: str
+    company: str
+    status: str
+    score: int
+    next_action: str
+    next_action_at: datetime
+
 class LeadActivityCreate(BaseModel):
     activity_type: str
     outcome: str | None = None

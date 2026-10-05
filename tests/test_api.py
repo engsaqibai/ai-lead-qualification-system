@@ -603,3 +603,193 @@ def test_update_next_action_with_empty_action():
     )
 
     assert response.status_code == 422
+
+def test_get_sales_actions():
+    payload = {
+        "name": "Sales Queue Test",
+        "email": "sales-queue@example.com",
+        "company": "Sales Queue Tech",
+        "industry": "Software",
+        "job_title": "CTO",
+        "company_size": 200,
+        "annual_revenue": 5_000_000,
+        "problem": "We need better lead qualification.",
+        "desired_outcome": "Automatically prioritize qualified leads.",
+        "timeline": "Within 3 months",
+        "budget": 25_000,
+        "decision_role": "Decision Maker",
+        "message": "We want to evaluate the solution.",
+    }
+
+    create_response = client.post(
+        "/leads",
+        json=payload,
+    )
+
+    assert create_response.status_code == 200
+
+    leads_response = client.get(
+        "/leads",
+        params={"limit": 100},
+    )
+
+    lead = next(
+        lead
+        for lead in leads_response.json()
+        if lead["email"] == payload["email"]
+    )
+
+    update_response = client.patch(
+        f"/leads/{lead['id']}/next-action",
+        json={
+            "next_action": "Schedule discovery call",
+            "next_action_at": "2099-01-01T10:00:00Z",
+        },
+    )
+
+    assert update_response.status_code == 200
+
+    response = client.get("/sales/actions")
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    sales_action = next(
+        action
+        for action in data
+        if action["lead_id"] == lead["id"]
+    )
+
+    assert sales_action["next_action"] == "Schedule discovery call"
+    assert sales_action["company"] == payload["company"]
+
+def test_get_sales_actions_upcoming_filter():
+    response = client.get(
+        "/sales/actions",
+        params={"due": "upcoming"},
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    for action in data:
+        assert action["next_action"] is not None
+        assert action["next_action_at"] is not None
+
+def test_get_sales_actions_invalid_filter():
+    response = client.get(
+        "/sales/actions",
+        params={"due": "invalid"},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "Invalid due filter"
+
+def test_sales_workflow_end_to_end():
+    payload = {
+        "name": "Sales Workflow Test",
+        "email": "sales-workflow@example.com",
+        "company": "Sales Workflow Tech",
+        "industry": "Software",
+        "job_title": "CTO",
+        "company_size": 200,
+        "annual_revenue": 5_000_000,
+        "problem": "We need better lead qualification.",
+        "desired_outcome": "Automatically prioritize qualified leads.",
+        "timeline": "Within 3 months",
+        "budget": 25_000,
+        "decision_role": "Decision Maker",
+        "message": "We want to evaluate the solution.",
+    }
+
+    # 1. Lead enters the system
+    create_response = client.post(
+        "/leads",
+        json=payload,
+    )
+
+    assert create_response.status_code == 200
+
+    lead = create_response.json()
+
+    leads_response = client.get(
+        "/leads",
+        params={"limit": 100},
+    )
+
+    assert leads_response.status_code == 200
+
+    created_lead = next(
+        lead
+        for lead in leads_response.json()
+        if lead["email"] == payload["email"]
+    )
+
+    lead_id = created_lead["id"]
+
+    # 2. Salesperson reviews the lead
+    review_response = client.patch(
+        f"/leads/{lead_id}/review"
+    )
+
+    assert review_response.status_code == 200
+
+    reviewed_lead = review_response.json()
+
+    assert reviewed_lead["reviewed"] is True
+    assert reviewed_lead["reviewed_at"] is not None
+
+    # 3. Salesperson records a sales activity
+    activity_response = client.post(
+        f"/leads/{lead_id}/activities",
+        json={
+            "activity_type": "call",
+            "outcome": "connected",
+            "notes": "Discovery call completed.",
+        },
+    )
+
+    assert activity_response.status_code == 200
+
+    activity = activity_response.json()
+
+    assert activity["lead_id"] == lead_id
+    assert activity["activity_type"] == "call"
+    assert activity["outcome"] == "connected"
+
+    # 4. Salesperson defines the actual next action
+    next_action_response = client.patch(
+        f"/leads/{lead_id}/next-action",
+        json={
+            "next_action": "Send proposal",
+            "next_action_at": "2099-01-15T10:00:00Z",
+        },
+    )
+
+    assert next_action_response.status_code == 200
+
+    updated_lead = next_action_response.json()
+
+    assert updated_lead["next_action"] == "Send proposal"
+    assert updated_lead["next_action_at"] is not None
+    assert updated_lead["recommended_action"] != updated_lead["next_action"]
+
+    # 5. Salesperson can see the lead in the sales action queue
+    sales_actions_response = client.get("/sales/actions")
+
+    assert sales_actions_response.status_code == 200
+
+    sales_actions = sales_actions_response.json()
+
+    sales_action = next(
+        action
+        for action in sales_actions
+        if action["lead_id"] == lead_id
+    )
+
+    assert sales_action["name"] == payload["name"]
+    assert sales_action["company"] == payload["company"]
+    assert sales_action["next_action"] == "Send proposal"
+    assert sales_action["next_action_at"] is not None

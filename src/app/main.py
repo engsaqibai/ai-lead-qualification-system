@@ -15,6 +15,7 @@ from src.app.schemas import (
     LeadResponse,
     QualificationConfig,
     QualificationResult,
+    SalesActionResponse,
 )
 
 from src.app.services.qualification import qualify_lead
@@ -193,6 +194,93 @@ def update_lead_next_action(
         )
 
     return lead_to_response(lead)
+
+@app.get(
+    "/sales/actions",
+    response_model=list[SalesActionResponse],
+)
+def get_sales_actions(
+    due: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    now = datetime.now(timezone.utc)
+
+    if due not in {None, "overdue", "today", "upcoming"}:
+        raise HTTPException(
+            status_code=422,
+            detail="Invalid due filter",
+        )
+
+    query = (
+        db.query(LeadModel)
+        .filter(
+            LeadModel.next_action.isnot(None),
+            LeadModel.next_action_at.isnot(None),
+        )
+    )
+
+    if due == "overdue":
+        query = query.filter(
+            LeadModel.next_action_at < now,
+        )
+
+    elif due == "today":
+        start_of_day = now.replace(
+            hour=0,
+            minute=0,
+            second=0,
+            microsecond=0,
+        )
+
+        end_of_day = start_of_day.replace(
+            hour=23,
+            minute=59,
+            second=59,
+            microsecond=999999,
+        )
+
+        query = query.filter(
+            LeadModel.next_action_at >= start_of_day,
+            LeadModel.next_action_at <= end_of_day,
+        )
+
+    elif due == "upcoming":
+        end_of_day = now.replace(
+            hour=23,
+            minute=59,
+            second=59,
+            microsecond=999999,
+        )
+
+        query = query.filter(
+            LeadModel.next_action_at > end_of_day,
+        )
+
+    try:
+        actions = (
+            query
+            .order_by(LeadModel.next_action_at.asc())
+            .all()
+        )
+
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to retrieve sales actions",
+        )
+
+    return [
+        SalesActionResponse(
+            lead_id=lead.id,
+            name=lead.name,
+            company=lead.company,
+            status=lead.status,
+            score=lead.score,
+            next_action=lead.next_action,
+            next_action_at=lead.next_action_at,
+        )
+        for lead in actions
+    ]
 
 @app.patch("/leads/{lead_id}/review", response_model=LeadResponse)
 def review_lead(
