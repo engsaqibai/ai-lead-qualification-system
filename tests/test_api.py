@@ -793,3 +793,127 @@ def test_sales_workflow_end_to_end():
     assert sales_action["company"] == payload["company"]
     assert sales_action["next_action"] == "Send proposal"
     assert sales_action["next_action_at"] is not None
+
+def test_pilot_sales_workflow():
+    payload = {
+        "name": "Pilot Customer",
+        "email": "pilot-customer@example.com",
+        "company": "Pilot SaaS",
+        "industry": "Software",
+        "job_title": "CTO",
+        "company_size": 200,
+        "annual_revenue": 5_000_000,
+        "problem": "We need better lead qualification.",
+        "desired_outcome": "Automatically prioritize qualified leads.",
+        "timeline": "Within 3 months",
+        "budget": 25_000,
+        "decision_role": "Decision Maker",
+        "message": "We want to evaluate the solution.",
+    }
+
+    # 1. Lead enters the system
+    response = client.post("/leads", json=payload)
+    assert response.status_code == 200
+
+    # Current POST /leads response is QualificationResult,
+    # so obtain the persisted lead from GET /leads.
+    leads_response = client.get(
+        "/leads",
+        params={"limit": 100},
+    )
+    assert leads_response.status_code == 200
+
+    lead = next(
+        lead
+        for lead in leads_response.json()
+        if lead["email"] == payload["email"]
+    )
+
+    lead_id = lead["id"]
+
+    # 2. Salesperson reviews the qualification
+    response = client.patch(f"/leads/{lead_id}/review")
+    assert response.status_code == 200
+    assert response.json()["reviewed"] is True
+
+    # 3. Salesperson records first contact
+    response = client.post(
+        f"/leads/{lead_id}/activities",
+        json={
+            "activity_type": "call",
+            "outcome": "Interested",
+            "notes": "Customer wants a product evaluation.",
+        },
+    )
+    assert response.status_code == 200
+
+    # 4. Salesperson chooses the REAL next action
+    response = client.patch(
+        f"/leads/{lead_id}/next-action",
+        json={
+            "next_action": "Schedule product demo",
+            "next_action_at": "2030-01-15T10:00:00Z",
+        },
+    )
+    assert response.status_code == 200
+
+    updated_lead = response.json()
+    assert updated_lead["next_action"] == "Schedule product demo"
+    assert updated_lead["next_action_at"] is not None
+
+    # 5. Lead appears in the sales action queue
+    response = client.get("/sales/actions")
+    assert response.status_code == 200
+
+    actions = response.json()
+
+    pilot_action = next(
+        action
+        for action in actions
+        if action["lead_id"] == lead_id
+    )
+
+    assert pilot_action["next_action"] == "Schedule product demo"
+
+    # 6. Salesperson completes the follow-up
+    response = client.post(
+        f"/leads/{lead_id}/activities",
+        json={
+            "activity_type": "demo",
+            "outcome": "Completed",
+            "notes": "Product demo completed successfully.",
+        },
+    )
+    assert response.status_code == 200
+
+    # 7. Salesperson moves the lead to the next real action
+    response = client.patch(
+        f"/leads/{lead_id}/next-action",
+        json={
+            "next_action": "Send proposal",
+            "next_action_at": "2030-01-20T10:00:00Z",
+        },
+    )
+    assert response.status_code == 200
+
+    final_lead = response.json()
+
+    assert final_lead["reviewed"] is True
+    assert final_lead["next_action"] == "Send proposal"
+    assert final_lead["next_action_at"] is not None
+
+    # 8. Activity history contains the complete sales journey
+    response = client.get(f"/leads/{lead_id}/activities")
+    assert response.status_code == 200
+
+    activities = response.json()
+
+    assert len(activities) >= 2
+    assert any(
+        activity["activity_type"] == "call"
+        for activity in activities
+    )
+    assert any(
+        activity["activity_type"] == "demo"
+        for activity in activities
+    )
