@@ -12,7 +12,16 @@ class Base(DeclarativeBase):
 
 
 if settings.database_url:
-    DATABASE_URL = settings.database_url
+    database_url = settings.database_url
+
+    if database_url.startswith("postgresql://"):
+        database_url = database_url.replace(
+            "postgresql://",
+            "postgresql+psycopg://",
+            1,
+        )
+
+    DATABASE_URL = database_url
 else:
     DATABASE_URL = URL.create(
         drivername="postgresql+psycopg",
