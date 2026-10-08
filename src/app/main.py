@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
 
 from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi.responses import FileResponse
+from pathlib import Path
 
 from sqlalchemy.orm import Session
 
@@ -23,6 +25,12 @@ from src.app.services.lead_mapper import lead_to_response
 
 
 app = FastAPI(title=settings.app_name)
+BASE_DIR = Path(__file__).resolve().parent
+
+
+@app.get("/")
+def serve_sales_workspace():
+    return FileResponse(BASE_DIR / "static" / "index.html")
 
 
 qualification_config = QualificationConfig(

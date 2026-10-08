@@ -11,17 +11,20 @@ class Base(DeclarativeBase):
     pass
 
 
-DATABASE_URL = URL.create(
-    drivername="postgresql+psycopg",
-    username=settings.database_user,
-    password=settings.database_password,
-    host=settings.database_host,
-    port=settings.database_port,
-    database=settings.database_name,
-)
+if settings.database_url:
+    DATABASE_URL = settings.database_url
+else:
+    DATABASE_URL = URL.create(
+        drivername="postgresql+psycopg",
+        username=settings.database_user,
+        password=settings.database_password,
+        host=settings.database_host,
+        port=settings.database_port,
+        database=settings.database_name,
+    )
+
 
 engine = create_engine(DATABASE_URL)
-
 
 SessionLocal = sessionmaker(
     bind=engine,
