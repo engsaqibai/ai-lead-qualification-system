@@ -1,8 +1,11 @@
+
 services:
   - type: web
     name: ai-lead-qualification-system
     runtime: python
     plan: free
+    region: singapore
+
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn src.app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
@@ -15,10 +18,4 @@ services:
         value: production
 
       - key: DATABASE_URL
-        fromDatabase:
-          name: ai-lead-qualification-db
-          property: connectionString
-
-databases:
-  - name: ai-lead-qualification-db
-    plan: free
+        sync: false
