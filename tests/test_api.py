@@ -150,6 +150,31 @@ def test_get_leads():
 
 
 def test_get_leads_pagination():
+    payload = {
+        "name": "Pagination Test Lead",
+        "email": "pagination-first@example.com",
+        "company": "Pagination Test Co",
+        "industry": "Technology",
+        "job_title": "Sales Manager",
+        "company_size": "250",
+        "annual_revenue": 1_000_000,
+        "problem": "Lead qualification takes too much time",
+        "desired_outcome": "Improve sales efficiency",
+        "timeline": "Within 3 months",
+        "budget": 50_000,
+        "decision_role": "Decision Maker",
+        "message": "Testing lead pagination.",
+    }
+
+    first_create = client.post("/leads", json=payload)
+    assert first_create.status_code == 200
+
+    payload["name"] = "Pagination Test Lead Two"
+    payload["email"] = "pagination-second@example.com"
+
+    second_create = client.post("/leads", json=payload)
+    assert second_create.status_code == 200
+
     first_response = client.get("/leads?skip=0&limit=1")
     second_response = client.get("/leads?skip=1&limit=1")
 
@@ -161,7 +186,6 @@ def test_get_leads_pagination():
 
     assert len(first_data) == 1
     assert len(second_data) == 1
-
     assert first_data[0]["id"] > second_data[0]["id"]
 
 

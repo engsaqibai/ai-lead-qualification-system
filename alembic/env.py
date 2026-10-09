@@ -1,7 +1,7 @@
+
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+from sqlalchemy import engine_from_config, pool
 
 from alembic import context
 
@@ -18,15 +18,18 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 
+def get_database_url() -> str:
+    if isinstance(DATABASE_URL, str):
+        return DATABASE_URL
+
+    return DATABASE_URL.render_as_string(hide_password=False)
+
+
 def run_migrations_offline() -> None:
     """Run migrations in offline mode."""
 
-    url = DATABASE_URL.render_as_string(
-        hide_password=False
-    )
-
     context.configure(
-        url=url,
+        url=get_database_url(),
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
@@ -40,10 +43,7 @@ def run_migrations_online() -> None:
     """Run migrations in online mode."""
 
     configuration = config.get_section(config.config_ini_section)
-
-    configuration["sqlalchemy.url"] = DATABASE_URL.render_as_string(
-        hide_password=False
-    )
+    configuration["sqlalchemy.url"] = get_database_url()
 
     connectable = engine_from_config(
         configuration,
