@@ -642,10 +642,27 @@
       line-height: 1.5;
     }
 
-    .action-date.overdue {
-      color: var(--red);
-      font-weight: 800;
-    }
+    .action-date.overdue { color: var(--red); font-weight: 800; }
+    .action-priority { display:inline-flex; align-items:center; padding:4px 8px; border-radius:999px; font-size:9px; line-height:1.2; font-weight:800; white-space:nowrap; }
+    .action-priority.overdue { color:var(--red); background:var(--red-soft); border:1px solid var(--red-border); }
+    .action-priority.today { color:var(--yellow); background:var(--yellow-soft); border:1px solid var(--yellow-border); }
+    .action-priority.upcoming { color:var(--blue); background:var(--blue-soft); border:1px solid var(--blue-border); }
+    .action-summary-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin:0 0 16px; }
+    .action-summary { min-width:0; padding:15px 16px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow-sm); text-align:left; transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease; }
+    .action-summary:hover { transform:translateY(-2px); border-color:var(--blue-border); box-shadow:0 8px 22px rgba(37,99,235,.08); }
+    .action-summary.active { border-color:var(--blue); box-shadow:0 0 0 2px rgba(37,99,235,.09); }
+    .action-summary.overdue.active { border-color:var(--red); } .action-summary.today.active { border-color:var(--yellow); }
+    .action-summary-label { color:var(--text-3); font-size:10px; font-weight:750; letter-spacing:.04em; text-transform:uppercase; }
+    .action-summary-value { margin-top:7px; font-size:27px; line-height:1; font-weight:820; letter-spacing:-.04em; }
+    .action-summary-note { margin-top:7px; color:var(--text-3); font-size:9px; line-height:1.4; }
+    .action-summary.overdue .action-summary-value { color:var(--red); } .action-summary.today .action-summary-value { color:var(--yellow); } .action-summary.upcoming .action-summary-value { color:var(--blue); }
+    .next-action-cell { min-width:175px; max-width:260px; } .next-action-title { font-size:10px; line-height:1.4; font-weight:750; overflow-wrap:anywhere; }
+    .next-action-due { margin-top:5px; color:var(--text-3); font-size:9px; line-height:1.35; } .next-action-due.overdue { color:var(--red); font-weight:800; } .next-action-due.today { color:var(--yellow); font-weight:800; }
+    .follow-up-card { padding:14px; border:1px solid var(--blue-border); border-radius:10px; background:linear-gradient(135deg,#eff6ff 0%,#fff 100%); box-shadow:var(--shadow-sm); } .follow-up-card .drawer-section-title { margin-bottom:9px; color:var(--blue-dark); }
+    @keyframes rise-in { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:translateY(0); } } .view.active .panel { animation:rise-in .22s ease both; }
+    @media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; scroll-behavior:auto !important; } }
+    @media (max-width:900px) { .action-summary-grid { gap:8px; } .action-summary { padding:12px; } .action-summary-value { font-size:23px; } }
+    @media (max-width:620px) { .action-summary-grid { grid-template-columns:1fr; } .action-summary { display:grid; grid-template-columns:1fr auto; align-items:center; column-gap:12px; } .action-summary-value { grid-column:2; grid-row:1 / span 2; margin:0; } .action-summary-note { grid-column:1; } }
 
     /* =========================================================
        ACTIVITY
@@ -1435,7 +1452,7 @@
                   <th>Status</th>
                   <th>Score</th>
                   <th>Review</th>
-                  <th>Next Action</th>
+                  <th>Next Action &amp; Due Date</th>
                 </tr>
 
               </thead>
@@ -1653,6 +1670,12 @@
 
         </div>
 
+
+        <div class="action-summary-grid" aria-label="Sales action summary">
+          <button class="action-summary overdue" id="action-summary-overdue" onclick="loadActionsView('overdue')"><div class="action-summary-label">Overdue</div><div class="action-summary-value" id="actions-overdue-count">0</div><div class="action-summary-note">Needs attention first</div></button>
+          <button class="action-summary today" id="action-summary-today" onclick="loadActionsView('today')"><div class="action-summary-label">Due Today</div><div class="action-summary-value" id="actions-today-count">0</div><div class="action-summary-note">Follow-ups scheduled for today</div></button>
+          <button class="action-summary upcoming" id="action-summary-upcoming" onclick="loadActionsView('upcoming')"><div class="action-summary-label">Upcoming</div><div class="action-summary-value" id="actions-upcoming-count">0</div><div class="action-summary-note">Scheduled for a future date</div></button>
+        </div>
 
         <div class="filter-bar">
 
@@ -3313,24 +3336,11 @@
                 </td>
 
 
-                <td>
-
-                  ${
-                    disqualified
-
-                      ? `
-                        <span
-                          class="muted"
-                          title="Disqualified leads are retained for history but excluded from active sales work.">
-                          Retained
-                        </span>
-                      `
-
-                      : valueOrDash(
-                          lead.next_action
-                        )
+                <td class="next-action-cell">
+                  ${disqualified
+                    ? `<span class="muted" title="Disqualified leads are retained for history but excluded from active sales work.">Retained</span>`
+                    : `<div class="next-action-title">${valueOrDash(lead.next_action)}</div><div class="next-action-due ${actionDueClass(lead.next_action_at)}">${lead.next_action_at ? `${actionDueLabel(lead.next_action_at)} · ${formatDate(lead.next_action_at)}` : "No follow-up date set"}</div>`
                   }
-
                 </td>
 
               </tr>
@@ -3374,6 +3384,16 @@
   }
 
 
+  function actionDueState(value) {
+    if (!value) return "unscheduled";
+    const due = new Date(value); const now = new Date();
+    if (due.toDateString() === now.toDateString()) return due < now ? "overdue" : "today";
+    return due < now ? "overdue" : "upcoming";
+  }
+  function actionDueClass(value) { const state = actionDueState(value); return state === "overdue" || state === "today" ? state : ""; }
+  function actionDueLabel(value) { return ({ overdue:"OVERDUE", today:"DUE TODAY", upcoming:"UPCOMING", unscheduled:"NO DATE" })[actionDueState(value)]; }
+  function countActionsByDue(items) { return items.reduce((counts,item) => { const state=actionDueState(item.next_action_at); if(state==="overdue") counts.overdue++; else if(state==="today") counts.today++; else if(state==="upcoming") counts.upcoming++; return counts; },{overdue:0,today:0,upcoming:0}); }
+
   function actionHtml(action) {
 
     const lead =
@@ -3395,10 +3415,8 @@
     }
 
 
-    const overdue =
-      isOverdue(
-        action.next_action_at
-      );
+    const dueState = actionDueState(action.next_action_at);
+    const overdue = dueState === "overdue";
 
 
     return `
@@ -3446,23 +3464,9 @@
         </div>
 
 
-        <div
-          class="action-date ${
-            overdue ? "overdue" : ""
-          }">
-
-          ${
-            overdue
-              ? "OVERDUE"
-              : "SCHEDULED"
-          }
-
-          <br>
-
-          ${formatDate(
-            action.next_action_at
-          )}
-
+        <div class="action-date ${overdue ? "overdue" : ""}">
+          <span class="action-priority ${dueState}">${actionDueLabel(action.next_action_at)}</span>
+          <div style="margin-top:7px;">${formatDate(action.next_action_at)}</div>
         </div>
 
       </div>
@@ -3517,16 +3521,15 @@
         });
 
 
-      $("actions-count").textContent =
-        `${active.length} actions`;
-
-
+      const counts = countActionsByDue(active);
+      $("actions-overdue-count").textContent = counts.overdue; $("actions-today-count").textContent = counts.today; $("actions-upcoming-count").textContent = counts.upcoming;
+      ["overdue","today","upcoming"].forEach(key => { const card=$("action-summary-"+key); if(card) card.classList.toggle("active",currentActionFilter===key); });
+      $("actions-count").textContent = `${active.length} ${active.length===1?"action":"actions"}`;
+      const priorityOrder={overdue:0,today:1,upcoming:2,unscheduled:3};
+      const ordered=[...active].sort((a,b)=>{const difference=priorityOrder[actionDueState(a.next_action_at)]-priorityOrder[actionDueState(b.next_action_at)];if(difference!==0)return difference;return new Date(a.next_action_at||0)-new Date(b.next_action_at||0);});
       $("actions-list").innerHTML =
-        active.length
-
-          ? active
-              .map(actionHtml)
-              .join("")
+        ordered.length
+          ? ordered.map(actionHtml).join("")
 
           : `
             <div class="empty">
@@ -4181,10 +4184,10 @@
 
       <!-- SALES ACTION -->
 
-      <div class="drawer-section">
+      <div class="drawer-section ${disqualified ? "" : "follow-up-card"}">
 
         <div class="drawer-section-title">
-          Sales Action
+          Next Follow-up
         </div>
 
 
