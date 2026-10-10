@@ -1058,11 +1058,24 @@
                 </td>
 
 
-                <td class="next-action-cell">
-                  ${disqualified
-                    ? `<span class="muted" title="Disqualified leads are retained for history but excluded from active sales work.">Retained</span>`
-                    : `<div class="next-action-title">${valueOrDash(lead.next_action)}</div><div class="next-action-due ${actionDueClass(lead.next_action_at)}">${lead.next_action_at ? `${actionDueLabel(lead.next_action_at)} · ${formatDate(lead.next_action_at)}` : "No follow-up date set"}</div>`
+                <td>
+
+                  ${
+                    disqualified
+
+                      ? `
+                        <span
+                          class="muted"
+                          title="Disqualified leads are retained for history but excluded from active sales work.">
+                          Retained
+                        </span>
+                      `
+
+                      : valueOrDash(
+                          lead.next_action
+                        )
                   }
+
                 </td>
 
               </tr>
@@ -1106,16 +1119,6 @@
   }
 
 
-  function actionDueState(value) {
-    if (!value) return "unscheduled";
-    const due = new Date(value); const now = new Date();
-    if (due.toDateString() === now.toDateString()) return due < now ? "overdue" : "today";
-    return due < now ? "overdue" : "upcoming";
-  }
-  function actionDueClass(value) { const state = actionDueState(value); return state === "overdue" || state === "today" ? state : ""; }
-  function actionDueLabel(value) { return ({ overdue:"OVERDUE", today:"DUE TODAY", upcoming:"UPCOMING", unscheduled:"NO DATE" })[actionDueState(value)]; }
-  function countActionsByDue(items) { return items.reduce((counts,item) => { const state=actionDueState(item.next_action_at); if(state==="overdue") counts.overdue++; else if(state==="today") counts.today++; else if(state==="upcoming") counts.upcoming++; return counts; },{overdue:0,today:0,upcoming:0}); }
-
   function actionHtml(action) {
 
     const lead =
@@ -1137,8 +1140,10 @@
     }
 
 
-    const dueState = actionDueState(action.next_action_at);
-    const overdue = dueState === "overdue";
+    const overdue =
+      isOverdue(
+        action.next_action_at
+      );
 
 
     return `
@@ -1186,9 +1191,23 @@
         </div>
 
 
-        <div class="action-date ${overdue ? "overdue" : ""}">
-          <span class="action-priority ${dueState}">${actionDueLabel(action.next_action_at)}</span>
-          <div style="margin-top:7px;">${formatDate(action.next_action_at)}</div>
+        <div
+          class="action-date ${
+            overdue ? "overdue" : ""
+          }">
+
+          ${
+            overdue
+              ? "OVERDUE"
+              : "SCHEDULED"
+          }
+
+          <br>
+
+          ${formatDate(
+            action.next_action_at
+          )}
+
         </div>
 
       </div>
@@ -1243,19 +1262,16 @@
         });
 
 
-      const allActiveActions = actions.filter(action => {
-        const lead = leads.find(item => item.id === action.lead_id);
-        return !lead || !isDisqualified(lead);
-      });
-      const counts = countActionsByDue(allActiveActions);
-      $("actions-overdue-count").textContent = counts.overdue; $("actions-today-count").textContent = counts.today; $("actions-upcoming-count").textContent = counts.upcoming;
-      ["overdue","today","upcoming"].forEach(key => { const card=$("action-summary-"+key); if(card) card.classList.toggle("active",currentActionFilter===key); });
-      $("actions-count").textContent = `${active.length} ${active.length===1?"action":"actions"}`;
-      const priorityOrder={overdue:0,today:1,upcoming:2,unscheduled:3};
-      const ordered=[...active].sort((a,b)=>{const difference=priorityOrder[actionDueState(a.next_action_at)]-priorityOrder[actionDueState(b.next_action_at)];if(difference!==0)return difference;return new Date(a.next_action_at||0)-new Date(b.next_action_at||0);});
+      $("actions-count").textContent =
+        `${active.length} actions`;
+
+
       $("actions-list").innerHTML =
-        ordered.length
-          ? ordered.map(actionHtml).join("")
+        active.length
+
+          ? active
+              .map(actionHtml)
+              .join("")
 
           : `
             <div class="empty">
@@ -1464,11 +1480,10 @@
         renderLeadDrawer(
           lead
         );
-
-
-      await loadLeadActivities(
-        lead.id
-      );
+      $("drawer-backdrop").classList.remove("open");
+      document.querySelector(".app")?.classList.add("with-lead-panel");
+      mountDrawerTabs();
+      await loadLeadActivities(lead.id);
 
     }
 
@@ -1499,13 +1514,10 @@
       .remove("open");
 
 
-    $("lead-drawer")
-      .classList
-      .remove("open");
-
-
-    selectedLeadId =
-      null;
+    $("lead-drawer").classList.remove("open");
+    document.querySelector(".app")?.classList.remove("with-lead-panel");
+    closeActivityModal();
+    selectedLeadId = null;
 
   }
 
@@ -1895,7 +1907,8 @@
         </div>
 
 
-        <div class="detail full recommended-action-card">
+        <div class="detail full">
+
           <div class="detail-value">
             ${valueOrDash(
               lead.recommended_action
@@ -1909,10 +1922,10 @@
 
       <!-- SALES ACTION -->
 
-      <div class="drawer-section ${disqualified ? "" : "follow-up-card"}">
+      <div class="drawer-section">
 
         <div class="drawer-section-title">
-          Next Follow-up
+          Sales Action
         </div>
 
 
@@ -2082,15 +2095,8 @@
         </button>
 
 
-        ${lead.next_action && !disqualified
-          ? `<div class="timeline-upcoming">
-              <div class="activity-card-top"><div class="timeline-upcoming-title">Upcoming · ${esc(lead.next_action)}</div><span class="badge badge-active">Next Action</span></div>
-              <div class="timeline-upcoming-meta">${lead.next_action_at ? esc(formatDate(lead.next_action_at)) : "Date not scheduled"}</div>
-            </div>`
-          : ""}
         <div
           id="lead-activities"
-          class="activity-list"
           style="margin-top:10px;">
 
           <div class="loading">
@@ -2217,6 +2223,44 @@
      ACTIVITY
   ========================================================= */
 
+  function mountDrawerTabs() {
+    const host = $("drawer-content");
+    if (!host || host.querySelector(".lead-tabs")) return;
+    const sections = Array.from(host.querySelectorAll(":scope > .drawer-section"));
+    if (!sections.length) return;
+    const nav = document.createElement("div");
+    nav.className = "lead-tabs";
+    nav.innerHTML = '<button type="button" class="lead-tab" data-tab="overview" onclick="switchLeadTab(\'overview\')">Overview</button><button type="button" class="lead-tab active" data-tab="activity" onclick="switchLeadTab(\'activity\')">Activity</button><button type="button" class="lead-tab" data-tab="details" onclick="switchLeadTab(\'details\')">Details</button>';
+    const panels = {
+      overview: document.createElement("section"),
+      activity: document.createElement("section"),
+      details: document.createElement("section")
+    };
+    Object.entries(panels).forEach(([key,panel]) => {
+      panel.className = "lead-tab-panel" + (key === "activity" ? " active" : "");
+      panel.dataset.panel = key;
+    });
+    sections.forEach(section => {
+      const title = (section.querySelector(".drawer-section-title")?.textContent || "").trim().toLowerCase();
+      let target = "details";
+      if (title.includes("lead state") || title.includes("ai qualification")) target = "overview";
+      if (title.includes("next sales action") || title.includes("activity history")) target = "activity";
+      panels[target].appendChild(section);
+    });
+    Array.from(host.children).forEach(child => {
+      if (!child.classList.contains("drawer-section")) panels.details.appendChild(child);
+    });
+    host.replaceChildren(nav, panels.overview, panels.activity, panels.details);
+  }
+
+  function switchLeadTab(tab) {
+    const host = $("drawer-content");
+    if (!host) return;
+    host.querySelectorAll(".lead-tab").forEach(button => button.classList.toggle("active", button.dataset.tab === tab));
+    host.querySelectorAll(".lead-tab-panel").forEach(panel => panel.classList.toggle("active", panel.dataset.panel === tab));
+  }
+
+
   async function loadLeadActivities(id) {
 
     const container =
@@ -2260,27 +2304,16 @@
       }
 
 
-      const sorted =
-        [...activities].sort(
-          (a, b) =>
-            new Date(
-              b.created_at || 0
-            ) -
-            new Date(
-              a.created_at || 0
-            )
-        );
-
-
-      container.innerHTML =
-        sorted
-          .map(
-            activity =>
-              activityHtml(
-                activity
-              )
-          )
-          .join("");
+      const sorted = [...activities].sort(
+        (a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0)
+      );
+      const lead = leads.find(item => String(item.id) === String(id));
+      const upcoming = lead && lead.next_action
+        ? `<div class="timeline-upcoming"><div class="activity-card-top"><strong>${esc(lead.next_action)}</strong><span class="badge badge-active">Next Action</span></div><div class="timeline-upcoming-meta">${lead.next_action_at ? esc(formatDate(lead.next_action_at)) : "Date not scheduled"}</div></div>`
+        : "";
+      container.innerHTML = upcoming + (sorted.length
+        ? sorted.map(activity => activityHtml(activity)).join("")
+        : '<div class="empty timeline-empty">No activity recorded yet. Use “Log Activity” to record the first call, email or meeting.</div>');
 
     }
 
@@ -2311,96 +2344,19 @@
     const icons = { call:"☎", email:"✉", meeting:"▦", note:"▤", other:"•" };
     return icons[String(type || "other").toLowerCase()] || icons.other;
   }
-  function activityHtml(
-    activity,
-    lead = null
-  ) {
-
+  function activityHtml(activity, lead = null) {
+    const type = String(activity.activity_type || "other").toLowerCase();
     return `
-
-      <div class="activity-item">
-        <div class="activity-icon ${esc(String(activity.activity_type || "other").toLowerCase())}">${activityIcon(activity.activity_type)}</div>
+      <article class="activity-item">
+        <div class="activity-icon ${esc(type)}">${activityIcon(type)}</div>
         <div class="activity-card-top">
-          <span class="activity-type">${esc(activityTypeLabel(activity.activity_type))}</span>
-          <span class="activity-time">${formatDate(activity.created_at)}</span>
+          <strong class="activity-type">${esc(activityTypeLabel(type))}</strong>
+          <time class="activity-time">${formatDate(activity.created_at)}</time>
         </div>
-
-
-        ${
-          lead
-
-            ? `
-
-              <div
-                style="
-                  margin-top:3px;
-                  font-size:9px;
-                  color:var(--blue);
-                  font-weight:700;
-                ">
-
-                ${esc(
-                  lead.name || ""
-                )}
-
-                ${
-                  lead.company
-                    ? ` · ${esc(
-                        lead.company
-                      )}`
-                    : ""
-                }
-
-              </div>
-
-            `
-
-            : ""
-        }
-
-
-        ${
-          activity.outcome
-
-            ? `
-
-              <div class="activity-outcome">
-
-                Outcome:
-                <strong>
-                  ${esc(
-                    activity.outcome
-                  )}
-                </strong>
-
-              </div>
-
-            `
-
-            : ""
-        }
-
-
-        ${
-          activity.notes
-
-            ? `
-
-              <div class="activity-notes">
-                ${esc(
-                  activity.notes
-                )}
-              </div>
-
-            `
-
-            : ""
-        }
-
-      </div>
-
-    `;
-
+        ${lead ? `<div class="activity-lead-ref">${esc(lead.name || "")}${lead.company ? " · " + esc(lead.company) : ""}</div>` : ""}
+        ${activity.outcome ? `<div class="activity-outcome">${esc(activity.outcome)}</div>` : ""}
+        ${activity.notes ? `<div class="activity-notes">${esc(activity.notes)}</div>` : ""}
+      </article>`;
   }
 
 
@@ -2578,9 +2534,11 @@
         : "";
 
 
-    $("activity-modal")
-      .classList
-      .add("open");
+    const form = $("activity-form");
+    form.reset();
+    $("activity-modal").classList.add("open");
+    const notes = form.querySelector('[name="notes"]');
+    if (notes) notes.focus();
 
   }
 
