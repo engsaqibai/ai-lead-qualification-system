@@ -1,9 +1,16 @@
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr, Field, model_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
 
 class Lead(BaseModel):
+    @field_validator("*", mode="before")
+    @classmethod
+    def strip_string_whitespace(cls, value):
+        if isinstance(value, str):
+            return value.strip()
+        return value
+
     name: str
     email: EmailStr
     company: str
