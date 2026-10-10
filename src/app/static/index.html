@@ -3521,7 +3521,11 @@
         });
 
 
-      const counts = countActionsByDue(active);
+      const allActiveActions = actions.filter(action => {
+        const lead = leads.find(item => item.id === action.lead_id);
+        return !lead || !isDisqualified(lead);
+      });
+      const counts = countActionsByDue(allActiveActions);
       $("actions-overdue-count").textContent = counts.overdue; $("actions-today-count").textContent = counts.today; $("actions-upcoming-count").textContent = counts.upcoming;
       ["overdue","today","upcoming"].forEach(key => { const card=$("action-summary-"+key); if(card) card.classList.toggle("active",currentActionFilter===key); });
       $("actions-count").textContent = `${active.length} ${active.length===1?"action":"actions"}`;
