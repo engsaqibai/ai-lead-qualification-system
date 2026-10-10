@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
 from sqlalchemy.orm import Session
@@ -26,6 +27,7 @@ from src.app.services.lead_mapper import lead_to_response
 
 app = FastAPI(title=settings.app_name)
 BASE_DIR = Path(__file__).resolve().parent
+app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
 
 @app.get("/")
