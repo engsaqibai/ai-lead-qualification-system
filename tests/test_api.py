@@ -6,6 +6,44 @@ from src.app.main import app
 client = TestClient(app)
 
 
+def test_create_lead_trims_string_fields():
+    payload = {
+        "name": "  Whitespace Test  ",
+        "email": " whitespace-test-2026@example.com ",
+        "company": "  Example Company  ",
+        "industry": "  Technology  ",
+        "job_title": "  Sales Manager  ",
+        "company_size": 250,
+        "annual_revenue": 1_000_000,
+        "problem": "  Need to qualify leads faster.  ",
+        "desired_outcome": "  Prioritize high-intent prospects.  ",
+        "timeline": "  Within 3 months  ",
+        "budget": 50_000,
+        "decision_role": "  Decision Maker  ",
+        "message": "  Testing whitespace trimming.  ",
+    }
+
+    response = client.post("/leads", json=payload)
+    assert response.status_code == 200
+
+    leads_response = client.get("/leads", params={"limit": 100})
+    assert leads_response.status_code == 200
+    lead = next(
+        item for item in leads_response.json()
+        if item["email"] == "whitespace-test-2026@example.com"
+    )
+
+    assert lead["name"] == "Whitespace Test"
+    assert lead["company"] == "Example Company"
+    assert lead["industry"] == "Technology"
+    assert lead["job_title"] == "Sales Manager"
+    assert lead["problem"] == "Need to qualify leads faster."
+    assert lead["desired_outcome"] == "Prioritize high-intent prospects."
+    assert lead["timeline"] == "Within 3 months"
+    assert lead["decision_role"] == "Decision Maker"
+    assert lead["message"] == "Testing whitespace trimming."
+
+
 def test_create_lead_success():
     payload = {
         "name": "Ali Khan",
