@@ -2,8 +2,10 @@ from datetime import datetime, timezone
 
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from src.app.config import settings
@@ -12,6 +14,7 @@ from src.app.db.models import LeadActivityModel, LeadModel
 from src.app.schemas import (
     Lead,
     LeadActivityCreate,
+    GlobalActivityResponse,
     LeadActivityResponse,
     LeadNextActionUpdate,
     LeadResponse,
@@ -26,6 +29,7 @@ from src.app.services.lead_mapper import lead_to_response
 
 app = FastAPI(title=settings.app_name)
 BASE_DIR = Path(__file__).resolve().parent
+app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
 
 @app.get("/")
@@ -62,11 +66,20 @@ def health_check():
     }
 
 
-@app.post("/leads", response_model=QualificationResult)
+@app.post("/leads", response_model=LeadResponse)
 def create_lead(
     lead: Lead,
     db: Session = Depends(get_db),
 ):
+    existing_lead = db.query(LeadModel.id).filter(
+        func.lower(LeadModel.email) == str(lead.email).strip().lower()
+    ).first()
+    if existing_lead is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="A lead with this email already exists.",
+        )
+
     result = qualify_lead(lead, qualification_config)
 
     lead_record = LeadModel(
@@ -92,21 +105,22 @@ def create_lead(
         reasons="\n".join(result.reasons),
         missing_information="\n".join(result.missing_information),
         recommended_action=result.recommended_action,
-        next_action=result.recommended_action,
+        next_action=None,
         next_action_at=None,
     )
 
     try:
         db.add(lead_record)
         db.commit()
+        db.refresh(lead_record)
     except Exception:
         db.rollback()
         raise HTTPException(
-        status_code=500,
-        detail="Failed to create lead",
+            status_code=500,
+            detail="Failed to create lead",
         )
 
-    return result
+    return lead_to_response(lead_record)
 
 
 @app.get("/leads", response_model=list[LeadResponse])
@@ -127,7 +141,7 @@ def get_leads(
             query = query.filter(LeadModel.reviewed == reviewed)
 
         if status is not None:
-            query = query.filter(LeadModel.status == status)
+            query = query.filter(func.lower(LeadModel.status) == status.strip().lower())
 
         leads = (
             query
@@ -224,6 +238,7 @@ def get_sales_actions(
         .filter(
             LeadModel.next_action.isnot(None),
             LeadModel.next_action_at.isnot(None),
+            func.lower(LeadModel.status) != "disqualified",
         )
     )
 
@@ -340,6 +355,7 @@ def create_lead_activity(
         activity_type=activity.activity_type,
         outcome=activity.outcome,
         notes=activity.notes,
+        tags=activity.tags,
     )
 
     try:
@@ -385,3 +401,40 @@ def get_lead_activities(
         )
 
     return activities
+
+@app.get(
+    "/activities",
+    response_model=list[GlobalActivityResponse],
+)
+def get_global_activities(
+    limit: int = Query(default=100, ge=1, le=5000),
+    db: Session = Depends(get_db),
+):
+    try:
+        rows = (
+            db.query(LeadActivityModel, LeadModel)
+            .join(LeadModel, LeadModel.id == LeadActivityModel.lead_id)
+            .order_by(LeadActivityModel.created_at.desc(), LeadActivityModel.id.desc())
+            .limit(limit)
+            .all()
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to retrieve activities",
+        )
+
+    return [
+        GlobalActivityResponse(
+            id=activity.id,
+            lead_id=lead.id,
+            lead_name=lead.name,
+            company=lead.company,
+            activity_type=activity.activity_type,
+            outcome=activity.outcome,
+            notes=activity.notes,
+            tags=activity.tags or [],
+            created_at=activity.created_at,
+        )
+        for activity, lead in rows
+    ]

@@ -82,6 +82,16 @@ def test_create_lead_rolls_back_on_database_error():
     }
 
     class FailingSession:
+        def query(self, model):
+            class QueryResult:
+                def filter(self, *args, **kwargs):
+                    return self
+
+                def first(self):
+                    return None
+
+            return QueryResult()
+
         def add(self, record):
             self.record = record
 
