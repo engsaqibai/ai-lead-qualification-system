@@ -2432,6 +2432,66 @@
      ACTIVITY MODAL
   ========================================================= */
 
+  let activityTags = [];
+
+  function renderActivityTags() {
+    const host = $("activity-tag-chips");
+    const hidden = $("activity-tags-value");
+    if (!host || !hidden) return;
+    hidden.value = activityTags.join(",");
+    host.innerHTML = activityTags.map((tag, index) => `
+      <span class="activity-tag-chip">
+        <button type="button" class="activity-tag-label" data-insert-tag="${index}">${esc(tag)}</button>
+        <button type="button" class="activity-tag-remove" data-remove-tag="${index}" aria-label="Remove ${esc(tag)}">×</button>
+      </span>
+    `).join("");
+  }
+
+  function addActivityTag() {
+    const input = $("activity-tag-input");
+    const tag = String(input.value || "").trim().replace(/^#+/, "");
+    if (!tag) return;
+    if (!activityTags.some(existing => existing.toLowerCase() === tag.toLowerCase())) {
+      activityTags.push(tag);
+      renderActivityTags();
+    }
+    input.value = "";
+    input.focus();
+  }
+
+  function removeActivityTag(index) {
+    activityTags = activityTags.filter((tag, i) => i !== Number(index));
+    renderActivityTags();
+  }
+
+  function insertActivityTag(index) {
+    const tag = activityTags[Number(index)];
+    const notes = $("activity-form").querySelector('[name="notes"]');
+    if (!tag || !notes) return;
+    const token = "#" + tag.replace(/\\s+/g, "_");
+    const prefix = notes.value && !/\\s$/.test(notes.value) ? " " : "";
+    notes.value += prefix + token;
+    notes.focus();
+  }
+
+  $("activity-tag-chips").addEventListener("click", event => {
+    const remove = event.target.closest("[data-remove-tag]");
+    if (remove) {
+      removeActivityTag(remove.dataset.removeTag);
+      return;
+    }
+    const insert = event.target.closest("[data-insert-tag]");
+    if (insert) insertActivityTag(insert.dataset.insertTag);
+  });
+
+  $("activity-tag-input").addEventListener("keydown", event => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      addActivityTag();
+    }
+  });
+
+
   function openActivityModal(
     leadId
   ) {
@@ -2461,6 +2521,8 @@
 
     const form = $("activity-form");
     form.reset();
+    activityTags = [];
+    renderActivityTags();
     const occurredAt = form.querySelector('[name="occurred_at"]');
     if (occurredAt) {
       const now = new Date();
