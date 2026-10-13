@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
@@ -227,7 +227,7 @@ def get_sales_actions(
 ):
     now = datetime.now(timezone.utc)
 
-    if due not in {None, "overdue", "today", "upcoming"}:
+    if due not in {None, "overdue", "today", "upcoming", "week"}:
         raise HTTPException(
             status_code=422,
             detail="Invalid due filter",
@@ -277,6 +277,19 @@ def get_sales_actions(
 
         query = query.filter(
             LeadModel.next_action_at > end_of_day,
+        )
+
+    elif due == "week":
+        start_of_day = now.replace(
+            hour=0,
+            minute=0,
+            second=0,
+            microsecond=0,
+        )
+        end_of_week = start_of_day + timedelta(days=7)
+        query = query.filter(
+            LeadModel.next_action_at >= start_of_day,
+            LeadModel.next_action_at < end_of_week,
         )
 
     try:
@@ -356,6 +369,7 @@ def create_lead_activity(
         outcome=activity.outcome,
         notes=activity.notes,
         tags=activity.tags,
+        occurred_at=activity.occurred_at or datetime.now(timezone.utc),
     )
 
     try:

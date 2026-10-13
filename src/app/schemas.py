@@ -163,6 +163,7 @@ class LeadActivityCreate(BaseModel):
     outcome: str | None = None
     notes: str | None = None
     tags: list[str] = Field(default_factory=list)
+    occurred_at: datetime | None = None
 
     @field_validator("activity_type", mode="before")
     @classmethod
@@ -209,6 +210,7 @@ class LeadActivityResponse(BaseModel):
     outcome: str | None
     notes: str | None
     tags: list[str] = Field(default_factory=list)
+    occurred_at: datetime | None = None
     created_at: datetime
 
 
@@ -221,4 +223,5 @@ class GlobalActivityResponse(BaseModel):
     outcome: str | None
     notes: str | None
     tags: list[str] = Field(default_factory=list)
+    occurred_at: datetime | None = None
     created_at: datetime

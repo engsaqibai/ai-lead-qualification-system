@@ -518,6 +518,7 @@ def test_create_lead_activity():
     assert data["activity_type"] == "email"
     assert data["outcome"] == "replied"
     assert data["notes"] == "Lead replied positively."
+    assert "occurred_at" in data
     assert "created_at" in data
 
 

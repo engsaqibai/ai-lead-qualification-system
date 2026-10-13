@@ -1130,3 +1130,12 @@ button:disabled {
   cursor: wait;
   opacity: .65;
 }
+
+
+/* Activity form helper text */
+.field-hint {
+  margin-top: 6px;
+  color: var(--text-3);
+  font-size: 11px;
+  line-height: 1.45;
+}
