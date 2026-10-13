@@ -448,6 +448,7 @@ def get_global_activities(
             outcome=activity.outcome,
             notes=activity.notes,
             tags=activity.tags or [],
+            occurred_at=activity.occurred_at,
             created_at=activity.created_at,
         )
         for activity, lead in rows
