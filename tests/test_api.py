@@ -1078,3 +1078,4 @@ def test_activity_tags_persist_and_appear_in_global_activity():
     assert match["lead_id"] == lead_id
     assert match["lead_name"] == "Pilot Safeguard Lead"
     assert match["tags"] == ["pricing", "follow-up"]
+    assert "occurred_at" in match
