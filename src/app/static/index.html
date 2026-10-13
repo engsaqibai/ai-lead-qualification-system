@@ -1181,11 +1181,16 @@
 
           <div class="field full">
 
-            <label>
-              Tags (comma-separated, optional)
-            </label>
-            <input name="tags" placeholder="e.g. pricing, follow-up, decision-maker">
-            <div class="field-hint">Use short tags to find conversations later. Tags are saved with the activity.</div>
+            <label>Tags</label>
+            <div class="activity-tag-editor">
+              <div id="activity-tag-chips" class="activity-tag-chips" aria-live="polite"></div>
+              <div class="activity-tag-add-row">
+                <input id="activity-tag-input" placeholder="Add a tag, e.g. pricing" aria-label="New activity tag">
+                <button type="button" class="btn btn-secondary btn-small" onclick="addActivityTag()">Add Tag</button>
+              </div>
+              <input type="hidden" name="tags" id="activity-tags-value">
+              <div class="field-hint">Click a tag to insert #tag into Notes. Use × to remove it.</div>
+            </div>
 
           </div>
 
