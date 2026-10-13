@@ -2469,7 +2469,7 @@
     const notes = $("activity-form").querySelector('[name="notes"]');
     if (!tag || !notes) return;
     const token = "#" + tag.replace(/\s+/g, "_");
-    const prefix = notes.value && !/\\s$/.test(notes.value) ? " " : "";
+    const prefix = notes.value && !/\s$/.test(notes.value) ? " " : "";
     notes.value += prefix + token;
     notes.focus();
   }
