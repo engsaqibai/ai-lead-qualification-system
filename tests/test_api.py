@@ -518,6 +518,7 @@ def test_create_lead_activity():
     assert data["activity_type"] == "email"
     assert data["outcome"] == "replied"
     assert data["notes"] == "Lead replied positively."
+    assert "occurred_at" in data
     assert "created_at" in data
 
 
@@ -1077,3 +1078,4 @@ def test_activity_tags_persist_and_appear_in_global_activity():
     assert match["lead_id"] == lead_id
     assert match["lead_name"] == "Pilot Safeguard Lead"
     assert match["tags"] == ["pricing", "follow-up"]
+    assert "occurred_at" in match

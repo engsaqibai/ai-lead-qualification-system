@@ -552,6 +552,17 @@
     $("kpi-actions").textContent =
       actions.length;
 
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfTomorrow = new Date(startOfToday);
+    startOfTomorrow.setDate(startOfTomorrow.getDate() + 1);
+    const overdueCount = actions.filter(action => action.next_action_at && new Date(action.next_action_at) < startOfToday).length;
+    const todayCount = actions.filter(action => action.next_action_at && new Date(action.next_action_at) >= startOfToday && new Date(action.next_action_at) < startOfTomorrow).length;
+    const upcomingCount = actions.filter(action => action.next_action_at && new Date(action.next_action_at) >= startOfTomorrow).length;
+    $("kpi-overdue").textContent = overdueCount;
+    $("kpi-due-today").textContent = todayCount;
+    $("kpi-upcoming").textContent = upcomingCount;
+
 
     $("nav-leads").textContent =
       total;
@@ -570,6 +581,12 @@
   /* =========================================================
      OVERVIEW
   ========================================================= */
+
+  function openActionsFilter(filter) {
+    switchView("actions");
+    loadActionsView(filter);
+  }
+
 
   function renderOverview() {
 
@@ -2286,26 +2303,8 @@
           : [];
 
 
-      if (!activities.length) {
-
-        container.innerHTML = `
-
-          <div class="empty"
-               style="padding:20px 5px;">
-
-            No activity recorded yet.
-
-          </div>
-
-        `;
-
-        return;
-
-      }
-
-
       const sorted = [...activities].sort(
-        (a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0)
+        (a, b) => new Date(a.occurred_at || a.created_at || 0) - new Date(b.occurred_at || b.created_at || 0)
       );
       const lead = leads.find(item => String(item.id) === String(id));
       const upcoming = lead && lead.next_action
@@ -2351,7 +2350,7 @@
         <div class="activity-icon ${esc(type)}">${activityIcon(type)}</div>
         <div class="activity-card-top">
           <strong class="activity-type">${esc(activityTypeLabel(type))}</strong>
-          <time class="activity-time">${formatDate(activity.created_at)}</time>
+          <time class="activity-time">${formatDate(activity.occurred_at || activity.created_at)}</time>
         </div>
         ${lead ? `<div class="activity-lead-ref">${esc(lead.name || "")}${lead.company ? " · " + esc(lead.company) : ""}</div>` : ""}
         ${activity.outcome ? `<div class="activity-outcome">${esc(activity.outcome)}</div>` : ""}
@@ -2433,6 +2432,66 @@
      ACTIVITY MODAL
   ========================================================= */
 
+  let activityTags = [];
+
+  function renderActivityTags() {
+    const host = $("activity-tag-chips");
+    const hidden = $("activity-tags-value");
+    if (!host || !hidden) return;
+    hidden.value = activityTags.join(",");
+    host.innerHTML = activityTags.map((tag, index) => `
+      <span class="activity-tag-chip">
+        <button type="button" class="activity-tag-label" data-insert-tag="${index}">${esc(tag)}</button>
+        <button type="button" class="activity-tag-remove" data-remove-tag="${index}" aria-label="Remove ${esc(tag)}">×</button>
+      </span>
+    `).join("");
+  }
+
+  function addActivityTag() {
+    const input = $("activity-tag-input");
+    const tag = String(input.value || "").trim().replace(/^#+/, "");
+    if (!tag) return;
+    if (!activityTags.some(existing => existing.toLowerCase() === tag.toLowerCase())) {
+      activityTags.push(tag);
+      renderActivityTags();
+    }
+    input.value = "";
+    input.focus();
+  }
+
+  function removeActivityTag(index) {
+    activityTags = activityTags.filter((tag, i) => i !== Number(index));
+    renderActivityTags();
+  }
+
+  function insertActivityTag(index) {
+    const tag = activityTags[Number(index)];
+    const notes = $("activity-form").querySelector('[name="notes"]');
+    if (!tag || !notes) return;
+    const token = "#" + tag.replace(/\s+/g, "_");
+    const prefix = notes.value && !/\s$/.test(notes.value) ? " " : "";
+    notes.value += prefix + token;
+    notes.focus();
+  }
+
+  $("activity-tag-chips").addEventListener("click", event => {
+    const remove = event.target.closest("[data-remove-tag]");
+    if (remove) {
+      removeActivityTag(remove.dataset.removeTag);
+      return;
+    }
+    const insert = event.target.closest("[data-insert-tag]");
+    if (insert) insertActivityTag(insert.dataset.insertTag);
+  });
+
+  $("activity-tag-input").addEventListener("keydown", event => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      addActivityTag();
+    }
+  });
+
+
   function openActivityModal(
     leadId
   ) {
@@ -2462,6 +2521,13 @@
 
     const form = $("activity-form");
     form.reset();
+    activityTags = [];
+    renderActivityTags();
+    const occurredAt = form.querySelector('[name="occurred_at"]');
+    if (occurredAt) {
+      const now = new Date();
+      occurredAt.value = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    }
     $("activity-modal").classList.add("open");
     const notes = form.querySelector('[name="notes"]');
     if (notes) notes.focus();
@@ -2500,6 +2566,9 @@
           .split(",")
           .map(tag => tag.trim())
           .filter(Boolean);
+        data.occurred_at = data.occurred_at
+          ? new Date(data.occurred_at).toISOString()
+          : new Date().toISOString();
 
         const leadId = selectedLeadId;
         await api(`/leads/${leadId}/activities`, {

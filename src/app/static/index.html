@@ -254,6 +254,24 @@
 
           </div>
 
+          <div class="kpi" onclick="openActionsFilter('overdue')">
+            <div class="kpi-label">Overdue</div>
+            <div class="kpi-value" id="kpi-overdue">0</div>
+            <div class="kpi-note">Follow-ups past due</div>
+          </div>
+
+          <div class="kpi" onclick="openActionsFilter('today')">
+            <div class="kpi-label">Due Today</div>
+            <div class="kpi-value" id="kpi-due-today">0</div>
+            <div class="kpi-note">Actions scheduled today</div>
+          </div>
+
+          <div class="kpi" onclick="openActionsFilter('upcoming')">
+            <div class="kpi-label">Upcoming</div>
+            <div class="kpi-value" id="kpi-upcoming">0</div>
+            <div class="kpi-note">Actions scheduled later</div>
+          </div>
+
         </div>
 
 
@@ -614,6 +632,12 @@
             class="btn btn-secondary btn-small"
             onclick="loadActionsView('upcoming')">
             Upcoming
+          </button>
+
+          <button
+            class="btn btn-secondary btn-small"
+            onclick="loadActionsView('week')">
+            This Week
           </button>
 
         </div>
@@ -1136,6 +1160,13 @@
 
 
           <div class="field">
+            <label>
+              Date &amp; Time
+            </label>
+            <input type="datetime-local" name="occurred_at" required>
+          </div>
+
+          <div class="field">
 
             <label>
               Outcome
@@ -1150,10 +1181,16 @@
 
           <div class="field full">
 
-            <label>
-              Tags (comma-separated, optional)
-            </label>
-            <input name="tags" placeholder="e.g. pricing, follow-up, decision-maker">
+            <label>Tags</label>
+            <div class="activity-tag-editor">
+              <div id="activity-tag-chips" class="activity-tag-chips" aria-live="polite"></div>
+              <div class="activity-tag-add-row">
+                <input id="activity-tag-input" placeholder="Add a tag, e.g. pricing" aria-label="New activity tag">
+                <button type="button" class="btn btn-secondary btn-small" onclick="addActivityTag()">Add Tag</button>
+              </div>
+              <input type="hidden" name="tags" id="activity-tags-value">
+              <div class="field-hint">Click a tag to insert #tag into Notes. Use × to remove it.</div>
+            </div>
 
           </div>
 
