@@ -6,6 +6,44 @@ from src.app.main import app
 client = TestClient(app)
 
 
+def test_create_lead_trims_string_fields():
+    payload = {
+        "name": "  Whitespace Test  ",
+        "email": " whitespace-test-2026@example.com ",
+        "company": "  Example Company  ",
+        "industry": "  Technology  ",
+        "job_title": "  Sales Manager  ",
+        "company_size": 250,
+        "annual_revenue": 1_000_000,
+        "problem": "  Need to qualify leads faster.  ",
+        "desired_outcome": "  Prioritize high-intent prospects.  ",
+        "timeline": "  Within 3 months  ",
+        "budget": 50_000,
+        "decision_role": "  Decision Maker  ",
+        "message": "  Testing whitespace trimming.  ",
+    }
+
+    response = client.post("/leads", json=payload)
+    assert response.status_code == 200
+
+    leads_response = client.get("/leads", params={"limit": 100})
+    assert leads_response.status_code == 200
+    lead = next(
+        item for item in leads_response.json()
+        if item["email"] == "whitespace-test-2026@example.com"
+    )
+
+    assert lead["name"] == "Whitespace Test"
+    assert lead["company"] == "Example Company"
+    assert lead["industry"] == "Technology"
+    assert lead["job_title"] == "Sales Manager"
+    assert lead["problem"] == "Need to qualify leads faster."
+    assert lead["desired_outcome"] == "Prioritize high-intent prospects."
+    assert lead["timeline"] == "Within 3 months"
+    assert lead["decision_role"] == "Decision Maker"
+    assert lead["message"] == "Testing whitespace trimming."
+
+
 def test_create_lead_success():
     payload = {
         "name": "Ali Khan",
@@ -480,6 +518,7 @@ def test_create_lead_activity():
     assert data["activity_type"] == "email"
     assert data["outcome"] == "replied"
     assert data["notes"] == "Lead replied positively."
+    assert "occurred_at" in data
     assert "created_at" in data
 
 
@@ -626,7 +665,10 @@ def test_update_next_action_with_empty_action():
         },
     )
 
-    assert response.status_code == 422
+    # Empty actions are normalized to None; this request reaches the endpoint,
+    # which correctly reports that the referenced lead does not exist.
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Lead not found"}
 
 def test_get_sales_actions():
     payload = {
@@ -941,3 +983,153 @@ def test_pilot_sales_workflow():
         activity["activity_type"] == "demo"
         for activity in activities
     )
+
+def _valid_lead_payload(email="pilot-safeguard@example.com"):
+    return {
+        "name": "Pilot Safeguard Lead",
+        "email": email,
+        "company": "Safeguard Example",
+        "industry": "Software",
+        "job_title": "Head of Sales",
+        "company_size": 120,
+        "annual_revenue": "",
+        "problem": "Qualification takes too much manual effort",
+        "desired_outcome": "Prioritize high-intent leads",
+        "timeline": "   ",
+        "budget": "",
+        "decision_role": "Decision Maker",
+        "message": "Created for API regression coverage",
+    }
+
+
+def test_create_lead_returns_persisted_id_and_blank_optional_values():
+    response = client.post("/leads", json=_valid_lead_payload())
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data["id"], int)
+    assert data["annual_revenue"] is None
+    assert data["budget"] is None
+    assert data["timeline"] is None
+    assert data["next_action"] is None
+
+
+def test_duplicate_lead_email_is_rejected_case_insensitively():
+    email = "duplicate-protection@example.com"
+    first = client.post("/leads", json=_valid_lead_payload(email))
+    assert first.status_code == 200
+
+    second_payload = _valid_lead_payload(f"  {email.upper()}  ")
+    second = client.post("/leads", json=second_payload)
+    assert second.status_code == 409
+
+
+def test_next_action_can_be_cleared():
+    created = client.post(
+        "/leads",
+        json=_valid_lead_payload("clear-action@example.com"),
+    )
+    assert created.status_code == 200
+    lead_id = created.json()["id"]
+
+    set_response = client.patch(
+        f"/leads/{lead_id}/next-action",
+        json={
+            "next_action": "Call the prospect",
+            "next_action_at": "2026-10-12T12:00:00Z",
+        },
+    )
+    assert set_response.status_code == 200
+    assert set_response.json()["next_action"] == "Call the prospect"
+
+    clear_response = client.patch(
+        f"/leads/{lead_id}/next-action",
+        json={"next_action": None, "next_action_at": None},
+    )
+    assert clear_response.status_code == 200
+    assert clear_response.json()["next_action"] is None
+    assert clear_response.json()["next_action_at"] is None
+
+
+def test_activity_tags_persist_and_appear_in_global_activity():
+    created = client.post(
+        "/leads",
+        json=_valid_lead_payload("activity-tags@example.com"),
+    )
+    assert created.status_code == 200
+    lead_id = created.json()["id"]
+
+    activity_response = client.post(
+        f"/leads/{lead_id}/activities",
+        json={
+            "activity_type": "call",
+            "outcome": "  Connected  ",
+            "notes": "  Discussed timeline  ",
+            "tags": ["pricing", " Pricing ", "follow-up"],
+        },
+    )
+    assert activity_response.status_code == 200
+    activity = activity_response.json()
+    assert activity["tags"] == ["pricing", "follow-up"]
+    assert activity["outcome"] == "Connected"
+
+    global_response = client.get("/activities?limit=5000")
+    assert global_response.status_code == 200
+    match = next(item for item in global_response.json() if item["id"] == activity["id"])
+    assert match["lead_id"] == lead_id
+    assert match["lead_name"] == "Pilot Safeguard Lead"
+    assert match["tags"] == ["pricing", "follow-up"]
+    assert "occurred_at" in match
+
+
+def test_next_action_changes_are_recorded_as_system_events():
+    payload = {
+        "name": "System Event Test Lead",
+        "email": "system-event-test-2026@example.com",
+        "company": "Event Tech",
+        "industry": "Software",
+        "job_title": "CTO",
+        "company_size": 200,
+        "annual_revenue": 5_000_000,
+        "problem": "We need better lead qualification.",
+        "desired_outcome": "Prioritize high-intent prospects.",
+        "timeline": "Within 3 months",
+        "budget": 25_000,
+        "decision_role": "Decision Maker",
+        "message": "Testing next-action event history.",
+    }
+    create_response = client.post("/leads", json=payload)
+    assert create_response.status_code == 200
+    lead_id = create_response.json()["id"]
+
+    update_response = client.patch(
+        f"/leads/{lead_id}/next-action",
+        json={
+            "next_action": "Schedule product demo",
+            "next_action_at": "2030-01-15T10:00:00Z",
+        },
+    )
+    assert update_response.status_code == 200
+
+    activities_response = client.get(f"/leads/{lead_id}/activities")
+    assert activities_response.status_code == 200
+    events = [
+        item for item in activities_response.json()
+        if item["activity_kind"] == "system_event"
+    ]
+    assert len(events) == 1
+    assert events[0]["outcome"] == "Next action set"
+    assert "Schedule product demo" in events[0]["notes"]
+
+    clear_response = client.patch(
+        f"/leads/{lead_id}/next-action",
+        json={"next_action": None, "next_action_at": None},
+    )
+    assert clear_response.status_code == 200
+
+    activities_response = client.get(f"/leads/{lead_id}/activities")
+    events = [
+        item for item in activities_response.json()
+        if item["activity_kind"] == "system_event"
+    ]
+    assert len(events) == 2
+    assert events[0]["outcome"] == "Next action cleared"

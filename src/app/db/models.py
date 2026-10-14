@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, Float, Integer, String, Text
+from sqlalchemy import JSON, DateTime, Float, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.app.db.database import Base
@@ -80,6 +80,13 @@ class LeadActivityModel(Base):
         nullable=False,
     )
 
+    activity_kind: Mapped[str] = mapped_column(
+        String(30),
+        nullable=False,
+        default="activity",
+        server_default="activity",
+    )
+
     outcome: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
@@ -88,6 +95,18 @@ class LeadActivityModel(Base):
     notes: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
+    )
+
+    tags: Mapped[list[str]] = mapped_column(
+        JSON,
+        nullable=False,
+        default=list,
+    )
+
+    occurred_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
     )
 
     created_at: Mapped[datetime] = mapped_column(

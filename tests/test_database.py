@@ -82,6 +82,16 @@ def test_create_lead_rolls_back_on_database_error():
     }
 
     class FailingSession:
+        def query(self, model):
+            class QueryResult:
+                def filter(self, *args, **kwargs):
+                    return self
+
+                def first(self):
+                    return None
+
+            return QueryResult()
+
         def add(self, record):
             self.record = record
 
@@ -138,6 +148,9 @@ def test_review_lead_returns_500_on_database_error():
                 missing_information="",
                 recommended_action="Contact immediately",
             )
+
+        def add(self, record):
+            self.added_record = record
 
         def commit(self):
             raise Exception("database failure")
