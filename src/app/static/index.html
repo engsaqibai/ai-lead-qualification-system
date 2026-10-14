@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>LeadPilot — AI Lead Qualification</title>
 
-    <link rel="stylesheet" href="/static/css/app.css?v=3">
+    <link rel="stylesheet" href="/static/css/app.css?v=5">
 
 </head>
 
@@ -1124,74 +1124,53 @@
 
     <form id="activity-form">
 
+      <input type="hidden" name="activity_type" id="activity-type-value" value="call">
+
       <div class="modal-body">
+        <div class="activity-type-tabs" role="tablist" aria-label="Activity type">
+          <button type="button" class="activity-type-tab active" data-activity-type="call"><span>☎</span> Phone Call</button>
+          <button type="button" class="activity-type-tab" data-activity-type="email"><span>✉</span> Email</button>
+          <button type="button" class="activity-type-tab" data-activity-type="meeting"><span>▦</span> Meeting</button>
+          <button type="button" class="activity-type-tab" data-activity-type="note"><span>▤</span> Note</button>
+        </div>
 
-        <div class="form-grid">
-
-          <div class="field full">
-            <label>Notes</label>
-            <textarea
-              name="notes"
-              rows="5"
-              placeholder="Record the conversation, customer concerns, commitments and agreed next steps..."></textarea>
-          </div>
-
-          <div class="field full">
-            <label>Tags</label>
-            <div class="activity-tag-editor">
-              <div id="activity-tag-chips" class="activity-tag-chips" aria-live="polite"></div>
-              <div class="activity-tag-add-row">
-                <input id="activity-tag-input" placeholder="Add a tag, e.g. pricing" aria-label="New activity tag">
-                <button type="button" class="btn btn-secondary btn-small" onclick="addActivityTag()">Add Tag</button>
-              </div>
-              <input type="hidden" name="tags" id="activity-tags-value">
-              <div class="field-hint">Click a tag to insert #tag into Notes. Use × to remove it.</div>
-            </div>
-          </div>
-
-          <div class="field">
-            <label>Activity Type</label>
-            <select name="activity_type" required>
-              <option value="call">Call</option>
-              <option value="email">Email</option>
-              <option value="meeting">Meeting</option>
-              <option value="note">Note</option>
-              <option value="other">Other</option>
-              <option value="demo">Demo</option>
-            </select>
-          </div>
-
+        <div class="form-grid activity-fields">
           <div class="field">
             <label>Date &amp; Time</label>
             <input type="datetime-local" name="occurred_at" required>
           </div>
-
-          <div class="field full">
+          <div class="field">
             <label>Outcome</label>
-            <input name="outcome" placeholder="Optional">
+            <select name="outcome">
+              <option value="">Select outcome (optional)</option>
+              <option>Interested</option><option>Information Sent</option>
+              <option>Connected</option><option>No Answer</option>
+              <option>Follow-up Required</option><option>Completed</option>
+              <option>Not Interested</option>
+            </select>
           </div>
-
+          <div class="field full">
+            <label>Notes</label>
+            <textarea name="notes" rows="4" placeholder="Record the conversation, customer concerns, commitments and agreed next steps..."></textarea>
+          </div>
+          <div class="field full">
+            <label>Tags (optional)</label>
+            <div class="activity-tag-line">
+              <div id="activity-tag-chips" class="activity-tag-chips" aria-live="polite"></div>
+              <button type="button" id="activity-tag-add-toggle" class="activity-tag-add-toggle">＋ Add Tag</button>
+              <input id="activity-tag-input" class="activity-tag-inline-input" placeholder="Enter tag…" aria-label="New activity tag" hidden>
+              <button type="button" id="activity-tag-confirm" class="btn btn-secondary btn-small" hidden>Add</button>
+              <input type="hidden" name="tags" id="activity-tags-value">
+            </div>
+            <div class="field-hint">Select a tag chip to insert it into Notes; use × to remove it.</div>
+          </div>
         </div>
       </div>
 
-
       <div class="modal-footer">
-
-        <button
-          type="button"
-          class="btn btn-secondary"
-          onclick="closeActivityModal()">
-          Cancel
-        </button>
-
-        <button
-          type="submit"
-          class="btn btn-primary">
-          Save Activity
-        </button>
-
+        <button type="button" class="btn btn-secondary" onclick="closeActivityModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Activity</button>
       </div>
-
     </form>
 
   </div>
@@ -1205,7 +1184,7 @@
 </div>
 
 
-  <script src="/static/js/app.js?v=4" defer></script>
+  <script src="/static/js/app.js?v=5" defer></script>
 
 
 </body>
