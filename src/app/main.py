@@ -202,8 +202,57 @@ def update_lead_next_action(
             detail="Lead not found",
         )
 
-    lead.next_action = action.next_action
-    lead.next_action_at = action.next_action_at
+    previous_action = lead.next_action
+    previous_due_at = lead.next_action_at
+    next_action = action.next_action
+    next_due_at = action.next_action_at
+
+    def normalized_datetime(value: datetime | None) -> datetime | None:
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+
+    changed = (
+        previous_action != next_action
+        or normalized_datetime(previous_due_at) != normalized_datetime(next_due_at)
+    )
+
+    lead.next_action = next_action
+    lead.next_action_at = next_due_at
+
+    if changed:
+        def describe_action(value: str | None, due_at: datetime | None) -> str:
+            if not value:
+                return "None"
+            if due_at is not None:
+                return f"{value} (due {due_at.isoformat()})"
+            return value
+
+        previous_description = describe_action(previous_action, previous_due_at)
+        next_description = describe_action(next_action, next_due_at)
+        if next_action is None:
+            event_outcome = "Next action cleared"
+        elif previous_action is None:
+            event_outcome = "Next action set"
+        else:
+            event_outcome = "Next action updated"
+
+        db.add(
+            LeadActivityModel(
+                lead_id=lead.id,
+                activity_type="other",
+                activity_kind="system_event",
+                outcome=event_outcome,
+                notes=(
+                    f"Next action changed from '{previous_description}' "
+                    f"to '{next_description}'."
+                ),
+                tags=[],
+                occurred_at=datetime.now(timezone.utc),
+            )
+        )
 
     try:
         db.commit()
@@ -366,6 +415,7 @@ def create_lead_activity(
     activity_record = LeadActivityModel(
         lead_id=lead_id,
         activity_type=activity.activity_type,
+        activity_kind="activity",
         outcome=activity.outcome,
         notes=activity.notes,
         tags=activity.tags,
@@ -445,6 +495,7 @@ def get_global_activities(
             lead_name=lead.name,
             company=lead.company,
             activity_type=activity.activity_type,
+            activity_kind=activity.activity_kind,
             outcome=activity.outcome,
             notes=activity.notes,
             tags=activity.tags or [],

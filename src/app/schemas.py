@@ -207,6 +207,7 @@ class LeadActivityResponse(BaseModel):
     id: int
     lead_id: int
     activity_type: str
+    activity_kind: str = "activity"
     outcome: str | None
     notes: str | None
     tags: list[str] = Field(default_factory=list)
@@ -220,6 +221,7 @@ class GlobalActivityResponse(BaseModel):
     lead_name: str
     company: str
     activity_type: str
+    activity_kind: str = "activity"
     outcome: str | None
     notes: str | None
     tags: list[str] = Field(default_factory=list)

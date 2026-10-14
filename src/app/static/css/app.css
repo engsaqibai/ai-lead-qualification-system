@@ -504,6 +504,11 @@
       background: var(--blue-soft);
     }
 
+    .badge-system {
+      color: var(--purple);
+      background: var(--purple-soft);
+    }
+
     .badge-neutral {
       color: var(--text-2);
       background: var(--surface-muted);
@@ -653,7 +658,12 @@
       display: grid;
     }
 
-    .activity-item {
+.activity-item.system-event {
+      border-left: 3px solid var(--purple);
+      background: var(--purple-soft);
+    }
+
+        .activity-item {
       position: relative;
       padding: 13px 0 13px 20px;
       border-bottom: 1px solid var(--border);

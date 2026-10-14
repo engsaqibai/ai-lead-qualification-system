@@ -2353,11 +2353,14 @@
   }
   function activityHtml(activity, lead = null) {
     const type = String(activity.activity_type || "other").toLowerCase();
+    const isSystemEvent = activity.activity_kind === "system_event";
+    const label = isSystemEvent ? "System Event" : activityTypeLabel(type);
     return `
-      <article class="activity-item">
+      <article class="activity-item ${isSystemEvent ? "system-event" : ""}">
         <div class="activity-icon ${esc(type)}">${activityIcon(type)}</div>
         <div class="activity-card-top">
-          <strong class="activity-type">${esc(activityTypeLabel(type))}</strong>
+          <strong class="activity-type">${esc(label)}</strong>
+          ${isSystemEvent ? '<span class="badge badge-system">Automated</span>' : ""}
           <time class="activity-time">${formatDate(activity.occurred_at || activity.created_at)}</time>
         </div>
         ${lead ? `<div class="activity-lead-ref">${esc(lead.name || "")}${lead.company ? " · " + esc(lead.company) : ""}</div>` : ""}

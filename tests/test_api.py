@@ -1079,3 +1079,57 @@ def test_activity_tags_persist_and_appear_in_global_activity():
     assert match["lead_name"] == "Pilot Safeguard Lead"
     assert match["tags"] == ["pricing", "follow-up"]
     assert "occurred_at" in match
+
+
+def test_next_action_changes_are_recorded_as_system_events():
+    payload = {
+        "name": "System Event Test Lead",
+        "email": "system-event-test-2026@example.com",
+        "company": "Event Tech",
+        "industry": "Software",
+        "job_title": "CTO",
+        "company_size": 200,
+        "annual_revenue": 5_000_000,
+        "problem": "We need better lead qualification.",
+        "desired_outcome": "Prioritize high-intent prospects.",
+        "timeline": "Within 3 months",
+        "budget": 25_000,
+        "decision_role": "Decision Maker",
+        "message": "Testing next-action event history.",
+    }
+    create_response = client.post("/leads", json=payload)
+    assert create_response.status_code == 200
+    lead_id = create_response.json()["id"]
+
+    update_response = client.patch(
+        f"/leads/{lead_id}/next-action",
+        json={
+            "next_action": "Schedule product demo",
+            "next_action_at": "2030-01-15T10:00:00Z",
+        },
+    )
+    assert update_response.status_code == 200
+
+    activities_response = client.get(f"/leads/{lead_id}/activities")
+    assert activities_response.status_code == 200
+    events = [
+        item for item in activities_response.json()
+        if item["activity_kind"] == "system_event"
+    ]
+    assert len(events) == 1
+    assert events[0]["outcome"] == "Next action set"
+    assert "Schedule product demo" in events[0]["notes"]
+
+    clear_response = client.patch(
+        f"/leads/{lead_id}/next-action",
+        json={"next_action": None, "next_action_at": None},
+    )
+    assert clear_response.status_code == 200
+
+    activities_response = client.get(f"/leads/{lead_id}/activities")
+    events = [
+        item for item in activities_response.json()
+        if item["activity_kind"] == "system_event"
+    ]
+    assert len(events) == 2
+    assert events[0]["outcome"] == "Next action cleared"

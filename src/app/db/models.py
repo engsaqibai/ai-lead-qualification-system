@@ -80,6 +80,13 @@ class LeadActivityModel(Base):
         nullable=False,
     )
 
+    activity_kind: Mapped[str] = mapped_column(
+        String(30),
+        nullable=False,
+        default="activity",
+        server_default="activity",
+    )
+
     outcome: Mapped[str | None] = mapped_column(
         Text,
         nullable=True,
