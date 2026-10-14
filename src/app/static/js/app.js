@@ -2111,18 +2111,9 @@
         </div>
 
 
-        <button
-          class="btn btn-primary btn-small"
-          onclick="openActivityModal(${lead.id})">
-
-          + Log Activity
-
-        </button>
-
-
         <div
           id="lead-activities"
-          style="margin-top:10px;">
+          class="lead-activity-timeline">
 
           <div class="loading">
             Loading activity...
@@ -2315,12 +2306,8 @@
         (a, b) => new Date(a.occurred_at || a.created_at || 0) - new Date(b.occurred_at || b.created_at || 0)
       );
       const lead = leads.find(item => String(item.id) === String(id));
-      const upcoming = lead && lead.next_action
-        ? `<div class="timeline-upcoming"><div class="activity-card-top"><strong>${esc(lead.next_action)}</strong><span class="badge badge-active">Next Action</span></div><div class="timeline-upcoming-meta">${lead.next_action_at ? esc(formatDate(lead.next_action_at)) : "Date not scheduled"}</div></div>`
-        : "";
-      container.innerHTML = upcoming + (sorted.length
-        ? sorted.map(activity => activityHtml(activity)).join("")
-        : '<div class="empty timeline-empty">No activity recorded yet. Use “Log Activity” to record the first call, email or meeting.</div>');
+      container.innerHTML = renderActionTimeline(lead, sorted) + `
+        <button class="btn btn-primary timeline-log-button" type="button" onclick="openActivityModal(${Number(id)})">＋ Log Activity</button>`;
 
     }
 
@@ -2343,13 +2330,108 @@
 
 
   function activityTypeLabel(type) {
-    const labels = { call:"Phone Call", email:"Email Sent", meeting:"Meeting", note:"Internal Note", other:"Activity" };
+    const labels = { call:"Phone Call", email:"Email Sent", meeting:"Meeting", note:"Note", other:"Activity", demo:"Demo" };
     const key = String(type || "other").toLowerCase();
     return labels[key] || (key.charAt(0).toUpperCase() + key.slice(1));
   }
   function activityIcon(type) {
-    const icons = { call:"☎", email:"✉", meeting:"▦", note:"▤", other:"•" };
+    const icons = { call:"☎", email:"✉", meeting:"▦", note:"▤", other:"•", demo:"▦" };
     return icons[String(type || "other").toLowerCase()] || icons.other;
+  }
+  function actionDescription(value) {
+    const text = String(value || "").trim();
+    if (!text || text === "None") return "";
+    return text.replace(/ \(due .+\)$/, "");
+  }
+  function parseActionTransition(event) {
+    const match = String(event.notes || "").match(/^Next action changed from '(.*)' to '(.*)'\.$/);
+    if (!match) return null;
+    return { from: actionDescription(match[1]), to: actionDescription(match[2]) };
+  }
+  function renderTimelineActivity(activity) {
+    const type = String(activity.activity_type || "other").toLowerCase();
+    const isSystemEvent = activity.activity_kind === "system_event";
+    return `
+      <article class="activity-item timeline-entry activity-${esc(type)} ${isSystemEvent ? "system-event" : ""}">
+        <div class="activity-icon ${esc(type)}">${activityIcon(type)}</div>
+        <div class="activity-card">
+          <div class="activity-card-top">
+            <strong class="activity-type">${esc(isSystemEvent ? "System Event" : activityTypeLabel(type))}</strong>
+            <time class="activity-time">${formatDate(activity.occurred_at || activity.created_at)}</time>
+          </div>
+          ${activity.outcome ? `<div class="activity-outcome">${esc(activity.outcome)}</div>` : ""}
+          ${activity.notes ? `<div class="activity-notes">${esc(activity.notes)}</div>` : ""}
+          ${Array.isArray(activity.tags) && activity.tags.length ? `<div class="activity-tags">${activity.tags.map(tag => `<span class="activity-tag">${esc(tag)}</span>`).join("")}</div>` : ""}
+        </div>
+      </article>`;
+  }
+  function renderActionCard(action, index, isCurrent, activities, hasCurrent) {
+    const status = isCurrent ? "Current" : (index === (hasCurrent ? 1 : 0) ? "Previous" : "Older");
+    const title = isCurrent ? "Next Action (Current)" : `Last Action (${status})`;
+    const due = action.due ? esc(formatDate(action.due)) : "Date not scheduled";
+    return `
+      <section class="timeline-action-group ${isCurrent ? "is-current" : "is-previous"}">
+        <article class="timeline-action-card">
+          <div class="activity-icon meeting">▦</div>
+          <div class="timeline-action-content">
+            <div class="activity-card-top"><strong>${esc(title)}</strong><span class="badge ${isCurrent ? "badge-active" : "badge-neutral"}">${esc(status)}</span></div>
+            <div class="timeline-action-name">${esc(action.title || "No action text")}</div>
+            <div class="timeline-upcoming-meta">Due: ${due}</div>
+            ${action.tags?.length ? `<div class="activity-tags">${action.tags.map(tag => `<span class="activity-tag">${esc(tag)}</span>`).join("")}</div>` : ""}
+          </div>
+        </article>
+        ${activities.map(renderTimelineActivity).join("")}
+      </section>`;
+  }
+  function renderActionTimeline(lead, activities) {
+    const systemEvents = activities.filter(item => item.activity_kind === "system_event")
+      .sort((a,b) => new Date(a.occurred_at || a.created_at) - new Date(b.occurred_at || b.created_at));
+    const normalActivities = activities.filter(item => item.activity_kind !== "system_event")
+      .sort((a,b) => new Date(a.occurred_at || a.created_at) - new Date(b.occurred_at || b.created_at));
+    const groups = [];
+    const stamp = item => new Date(item.occurred_at || item.created_at || 0).getTime();
+    for (const event of systemEvents) {
+      const transition = parseActionTransition(event);
+      if (!transition) continue;
+      const at = stamp(event);
+      if (groups.length) groups[groups.length - 1].end = at;
+      else if (transition.from) groups.push({ title: transition.from, start: -Infinity, end: at, due: null, tags: [] });
+      if (transition.to) {
+        const dueMatch = String(event.notes || "").match(/ to '.*? \(due (.+)\)'\.$/);
+        groups.push({ title: transition.to, start: at, end: Infinity, due: dueMatch ? dueMatch[1] : null, tags: [] });
+      }
+    }
+    if (lead && lead.next_action) {
+      const currentTitle = String(lead.next_action).trim();
+      const last = groups[groups.length - 1];
+      if (!last || last.title !== currentTitle) {
+        if (last) last.end = Infinity;
+        groups.push({ title: currentTitle, start: last ? stamp(systemEvents[systemEvents.length - 1]) : -Infinity, end: Infinity, due: lead.next_action_at, tags: [] });
+      } else {
+        last.due = lead.next_action_at || last.due;
+        last.end = Infinity;
+      }
+    }
+    if (!groups.length && normalActivities.length) {
+      groups.push({ title: "Activity history", start: -Infinity, end: Infinity, due: null, tags: [], fallback: true });
+    }
+    if (groups.length) {
+      const firstStart = groups[0].start;
+      const earlier = normalActivities.filter(item => stamp(item) < firstStart);
+      if (earlier.length) groups.unshift({ title: "Earlier Activity", start: -Infinity, end: firstStart, due: null, tags: [], fallback: true });
+    }
+    if (!groups.length && normalActivities.length) {
+      groups.push({ title: "Earlier Activity", start: -Infinity, end: Infinity, due: null, tags: [], fallback: true });
+    }
+    const displayGroups = [...groups].reverse();
+    const rendered = displayGroups.map((group, index) => {
+      const groupActivities = normalActivities.filter(item => stamp(item) >= group.start && stamp(item) < group.end);
+      const isCurrent = Boolean(lead && lead.next_action && group.title === String(lead.next_action).trim() && group.end === Infinity && !group.fallback);
+      return group.fallback
+        ? `<section class="timeline-action-group is-previous"><div class="timeline-group-heading">Earlier Activity</div>${groupActivities.map(renderTimelineActivity).join("")}</section>`
+        : renderActionCard(group, index, isCurrent, groupActivities, Boolean(lead && lead.next_action));
+    });
+    return rendered.length ? rendered.join("") : '<div class="empty timeline-empty">No next action or activity recorded yet.</div>';
   }
   function activityHtml(activity, lead = null) {
     const type = String(activity.activity_type || "other").toLowerCase();
@@ -2467,7 +2549,12 @@
       renderActivityTags();
     }
     input.value = "";
-    input.focus();
+    input.hidden = true;
+    const confirm = $("activity-tag-confirm");
+    if (confirm) confirm.hidden = true;
+    const toggle = $("activity-tag-add-toggle");
+    if (toggle) toggle.hidden = false;
+    if (toggle) toggle.focus();
   }
 
   function removeActivityTag(index) {
@@ -2500,6 +2587,25 @@
       event.preventDefault();
       addActivityTag();
     }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.currentTarget.hidden = true;
+      $("activity-tag-confirm").hidden = true;
+      $("activity-tag-add-toggle").hidden = false;
+    }
+  });
+  $("activity-tag-add-toggle").addEventListener("click", () => {
+    $("activity-tag-add-toggle").hidden = true;
+    $("activity-tag-input").hidden = false;
+    $("activity-tag-confirm").hidden = false;
+    $("activity-tag-input").focus();
+  });
+  $("activity-tag-confirm").addEventListener("click", addActivityTag);
+  document.querySelectorAll(".activity-type-tab").forEach(button => {
+    button.addEventListener("click", () => {
+      document.querySelectorAll(".activity-type-tab").forEach(tab => tab.classList.toggle("active", tab === button));
+      $("activity-type-value").value = button.dataset.activityType;
+    });
   });
 
 
@@ -2534,6 +2640,11 @@
     form.reset();
     activityTags = [];
     renderActivityTags();
+    $("activity-tag-input").hidden = true;
+    $("activity-tag-confirm").hidden = true;
+    $("activity-tag-add-toggle").hidden = false;
+    document.querySelectorAll(".activity-type-tab").forEach(tab => tab.classList.toggle("active", tab.dataset.activityType === "call"));
+    $("activity-type-value").value = "call";
     const occurredAt = form.querySelector('[name="occurred_at"]');
     if (occurredAt) {
       const now = new Date();
