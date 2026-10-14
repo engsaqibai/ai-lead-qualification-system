@@ -1547,6 +1547,24 @@
   }
 
 
+  // Close the lead details panel when interacting elsewhere in the workspace.
+  // Keep it open while using the Log Activity composer associated with this lead.
+  document.addEventListener("pointerdown", event => {
+    const drawer = $("lead-drawer");
+    if (!drawer?.classList.contains("open")) return;
+
+    const activityModal = $("activity-modal");
+    if (activityModal?.classList.contains("open") &&
+        activityModal.querySelector(".modal")?.contains(event.target)) {
+      return;
+    }
+
+    if (!drawer.contains(event.target)) {
+      closeDrawer();
+    }
+  }, true);
+
+
   function renderLeadDrawer(lead) {
 
     const reasons =
