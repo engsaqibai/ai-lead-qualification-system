@@ -1559,6 +1559,11 @@
       return;
     }
 
+    // Switching to another lead should update the existing drawer in place.
+    // Lead rows and links call openLead(...), so do not close the drawer first.
+    const leadOpener = event.target.closest?.('[onclick*="openLead"]');
+    if (leadOpener) return;
+
     if (!drawer.contains(event.target)) {
       closeDrawer();
     }
