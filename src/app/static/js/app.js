@@ -158,8 +158,12 @@
       return "badge badge-disqualified";
     }
 
-    if (value === "needs_review") {
+    if (value === "review" || value === "needs_review") {
       return "badge badge-review";
+    }
+
+    if (value === "nurture") {
+      return "badge badge-nurture";
     }
 
     return "badge badge-neutral";
@@ -895,12 +899,10 @@
         }
 
 
-        if (
-          status &&
-          String(lead.status || "")
-            .toLowerCase()
-          !== status.toLowerCase()
-        ) {
+        const leadStatus = String(lead.status || "").trim().toLowerCase();
+        const selectedStatus = status === "needs_review" ? "review" : status;
+
+        if (selectedStatus && leadStatus !== selectedStatus) {
           return false;
         }
 
