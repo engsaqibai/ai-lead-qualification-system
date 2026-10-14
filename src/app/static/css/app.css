@@ -895,15 +895,16 @@
       display: flex;
     }
 
+    /* Keep the activity composer centered in the usable workspace, left of the lead drawer. */
     #activity-modal.with-lead-panel.open {
       align-items: flex-end;
-      justify-content: flex-end;
-      padding: 20px calc(min(var(--drawer), 94vw) + 20px) 20px 20px;
+      justify-content: center;
+      padding: 0 18px 18px;
     }
 
     #activity-modal.with-lead-panel .modal {
-      width: min(480px, calc(100vw - min(var(--drawer), 94vw) - 60px));
-      max-height: min(82vh, 760px);
+      width: min(540px, 100%);
+      max-height: min(84vh, 760px);
     }
 
     .modal {

@@ -2668,6 +2668,17 @@
 
   }
 
+  // Dismiss the composer when the user interacts anywhere outside its card.
+  // Capture phase prevents the click that opens the composer from dismissing it immediately.
+  document.addEventListener("pointerdown", event => {
+    const activityModal = $("activity-modal");
+    if (!activityModal?.classList.contains("open")) return;
+    const modalCard = activityModal.querySelector(".modal");
+    if (modalCard && !modalCard.contains(event.target)) {
+      closeActivityModal();
+    }
+  }, true);
+
 
   let isSavingActivity = false;
 
