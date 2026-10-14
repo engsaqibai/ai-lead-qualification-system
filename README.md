@@ -15,7 +15,7 @@ The current system supports this complete workflow:
 7. Record the follow-up activity.
 8. Move the lead to its next sales action.
 
-The workflow is covered by the end-to-end pilot acceptance test, and the current test suite has 46 passing tests.
+The workflow is covered by the end-to-end pilot acceptance test, and the current test suite has 51 passing tests.
 
 ## Prerequisites
 
@@ -196,7 +196,7 @@ python -m pytest -v
 The current verified baseline is:
 
 ```text
-46 passed
+51 passed
 ```
 
 The dedicated pilot workflow can also be run independently:
