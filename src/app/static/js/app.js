@@ -631,6 +631,10 @@
 
 
               <td>
+                <div class="lead-received-at">${esc(formatDate(lead.created_at))}</div>
+              </td>
+
+              <td>
 
                 <span class="${statusClass(lead.status)}">
                   ${esc(statusLabel(lead.status))}
@@ -1015,6 +1019,10 @@
 
 
                 <td>
+                  <div class="lead-received-at">${esc(formatDate(lead.created_at))}</div>
+                </td>
+
+                <td>
 
                   <span
                     class="${statusClass(lead.status)}">
@@ -1368,6 +1376,10 @@
 
               </td>
 
+
+              <td>
+                <div class="lead-received-at">${esc(formatDate(lead.created_at))}</div>
+              </td>
 
               <td>
 
@@ -1750,6 +1762,11 @@
 
 
         <div class="detail-grid">
+
+          ${detail(
+            "Received At",
+            formatDate(lead.created_at)
+          )}
 
           ${detail(
             "Name",
