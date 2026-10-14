@@ -2365,8 +2365,8 @@
         </div>
       </article>`;
   }
-  function renderActionCard(action, index, isCurrent, activities) {
-    const status = isCurrent ? "Current" : (index === 1 ? "Previous" : "Older");
+  function renderActionCard(action, index, isCurrent, activities, hasCurrent) {
+    const status = isCurrent ? "Current" : (index === (hasCurrent ? 1 : 0) ? "Previous" : "Older");
     const title = isCurrent ? "Next Action (Current)" : `Last Action (${status})`;
     const due = action.due ? esc(formatDate(action.due)) : "Date not scheduled";
     return `
@@ -2429,7 +2429,7 @@
       const isCurrent = Boolean(lead && lead.next_action && group.title === String(lead.next_action).trim() && group.end === Infinity && !group.fallback);
       return group.fallback
         ? `<section class="timeline-action-group is-previous"><div class="timeline-group-heading">Earlier Activity</div>${groupActivities.map(renderTimelineActivity).join("")}</section>`
-        : renderActionCard(group, index, isCurrent, groupActivities);
+        : renderActionCard(group, index, isCurrent, groupActivities, Boolean(lead && lead.next_action));
     });
     return rendered.length ? rendered.join("") : '<div class="empty timeline-empty">No next action or activity recorded yet.</div>';
   }
