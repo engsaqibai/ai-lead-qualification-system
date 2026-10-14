@@ -489,6 +489,11 @@
       background: var(--yellow-soft);
     }
 
+    .badge-nurture {
+      color: var(--text-2);
+      background: var(--surface-muted);
+    }
+
     .badge-disqualified {
       color: var(--red);
       background: var(--red-soft);
