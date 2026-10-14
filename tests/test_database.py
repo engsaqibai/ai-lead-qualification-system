@@ -149,6 +149,9 @@ def test_review_lead_returns_500_on_database_error():
                 recommended_action="Contact immediately",
             )
 
+        def add(self, record):
+            self.added_record = record
+
         def commit(self):
             raise Exception("database failure")
 
