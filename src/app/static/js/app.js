@@ -177,7 +177,13 @@
       return "Unknown";
     }
 
-    return String(status)
+    const value = String(status).trim().toLowerCase();
+
+    if (value === "review" || value === "needs_review") {
+      return "Needs Review";
+    }
+
+    return value
       .replaceAll("_", " ")
       .replace(/\b\w/g, char =>
         char.toUpperCase()
