@@ -885,6 +885,17 @@
       display: flex;
     }
 
+    #activity-modal.with-lead-panel.open {
+      align-items: flex-end;
+      justify-content: flex-end;
+      padding: 20px calc(min(var(--drawer), 94vw) + 20px) 20px 20px;
+    }
+
+    #activity-modal.with-lead-panel .modal {
+      width: min(480px, calc(100vw - min(var(--drawer), 94vw) - 60px));
+      max-height: min(82vh, 760px);
+    }
+
     .modal {
       width: min(720px, 100%);
       max-height: 92vh;
@@ -1011,6 +1022,19 @@
         grid-template-columns: 1fr;
       }
 
+    }
+
+    @media (max-width: 1100px) {
+      #activity-modal.with-lead-panel.open {
+        align-items: center;
+        justify-content: center;
+        padding: 14px;
+      }
+
+      #activity-modal.with-lead-panel .modal {
+        width: min(560px, 100%);
+        max-height: 92vh;
+      }
     }
 
     @media (max-width: 760px) {
