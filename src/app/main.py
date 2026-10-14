@@ -1,9 +1,11 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from src.app.config import settings
@@ -12,6 +14,7 @@ from src.app.db.models import LeadActivityModel, LeadModel
 from src.app.schemas import (
     Lead,
     LeadActivityCreate,
+    GlobalActivityResponse,
     LeadActivityResponse,
     LeadNextActionUpdate,
     LeadResponse,
@@ -26,6 +29,7 @@ from src.app.services.lead_mapper import lead_to_response
 
 app = FastAPI(title=settings.app_name)
 BASE_DIR = Path(__file__).resolve().parent
+app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
 
 @app.get("/")
@@ -62,11 +66,20 @@ def health_check():
     }
 
 
-@app.post("/leads", response_model=QualificationResult)
+@app.post("/leads", response_model=LeadResponse)
 def create_lead(
     lead: Lead,
     db: Session = Depends(get_db),
 ):
+    existing_lead = db.query(LeadModel.id).filter(
+        func.lower(LeadModel.email) == str(lead.email).strip().lower()
+    ).first()
+    if existing_lead is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="A lead with this email already exists.",
+        )
+
     result = qualify_lead(lead, qualification_config)
 
     lead_record = LeadModel(
@@ -92,21 +105,22 @@ def create_lead(
         reasons="\n".join(result.reasons),
         missing_information="\n".join(result.missing_information),
         recommended_action=result.recommended_action,
-        next_action=result.recommended_action,
+        next_action=None,
         next_action_at=None,
     )
 
     try:
         db.add(lead_record)
         db.commit()
+        db.refresh(lead_record)
     except Exception:
         db.rollback()
         raise HTTPException(
-        status_code=500,
-        detail="Failed to create lead",
+            status_code=500,
+            detail="Failed to create lead",
         )
 
-    return result
+    return lead_to_response(lead_record)
 
 
 @app.get("/leads", response_model=list[LeadResponse])
@@ -127,7 +141,7 @@ def get_leads(
             query = query.filter(LeadModel.reviewed == reviewed)
 
         if status is not None:
-            query = query.filter(LeadModel.status == status)
+            query = query.filter(func.lower(LeadModel.status) == status.strip().lower())
 
         leads = (
             query
@@ -188,10 +202,59 @@ def update_lead_next_action(
             detail="Lead not found",
         )
 
-    lead.next_action = action.next_action
-    lead.next_action_at = action.next_action_at
+    previous_action = lead.next_action
+    previous_due_at = lead.next_action_at
+    next_action = action.next_action
+    next_due_at = action.next_action_at
+
+    def normalized_datetime(value: datetime | None) -> datetime | None:
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+
+    changed = (
+        previous_action != next_action
+        or normalized_datetime(previous_due_at) != normalized_datetime(next_due_at)
+    )
+
+    lead.next_action = next_action
+    lead.next_action_at = next_due_at
 
     try:
+        if changed:
+            def describe_action(value: str | None, due_at: datetime | None) -> str:
+                if not value:
+                    return "None"
+                if due_at is not None:
+                    return f"{value} (due {due_at.isoformat()})"
+                return value
+
+            previous_description = describe_action(previous_action, previous_due_at)
+            next_description = describe_action(next_action, next_due_at)
+            if next_action is None:
+                event_outcome = "Next action cleared"
+            elif previous_action is None:
+                event_outcome = "Next action set"
+            else:
+                event_outcome = "Next action updated"
+
+            db.add(
+                LeadActivityModel(
+                    lead_id=lead.id,
+                    activity_type="other",
+                    activity_kind="system_event",
+                    outcome=event_outcome,
+                    notes=(
+                        f"Next action changed from '{previous_description}' "
+                        f"to '{next_description}'."
+                    ),
+                    tags=[],
+                    occurred_at=datetime.now(timezone.utc),
+                )
+            )
+
         db.commit()
         db.refresh(lead)
     except Exception:
@@ -213,7 +276,7 @@ def get_sales_actions(
 ):
     now = datetime.now(timezone.utc)
 
-    if due not in {None, "overdue", "today", "upcoming"}:
+    if due not in {None, "overdue", "today", "upcoming", "week"}:
         raise HTTPException(
             status_code=422,
             detail="Invalid due filter",
@@ -224,6 +287,7 @@ def get_sales_actions(
         .filter(
             LeadModel.next_action.isnot(None),
             LeadModel.next_action_at.isnot(None),
+            func.lower(LeadModel.status) != "disqualified",
         )
     )
 
@@ -262,6 +326,19 @@ def get_sales_actions(
 
         query = query.filter(
             LeadModel.next_action_at > end_of_day,
+        )
+
+    elif due == "week":
+        start_of_day = now.replace(
+            hour=0,
+            minute=0,
+            second=0,
+            microsecond=0,
+        )
+        end_of_week = start_of_day + timedelta(days=7)
+        query = query.filter(
+            LeadModel.next_action_at >= start_of_day,
+            LeadModel.next_action_at < end_of_week,
         )
 
     try:
@@ -338,8 +415,11 @@ def create_lead_activity(
     activity_record = LeadActivityModel(
         lead_id=lead_id,
         activity_type=activity.activity_type,
+        activity_kind="activity",
         outcome=activity.outcome,
         notes=activity.notes,
+        tags=activity.tags,
+        occurred_at=activity.occurred_at or datetime.now(timezone.utc),
     )
 
     try:
@@ -385,3 +465,42 @@ def get_lead_activities(
         )
 
     return activities
+
+@app.get(
+    "/activities",
+    response_model=list[GlobalActivityResponse],
+)
+def get_global_activities(
+    limit: int = Query(default=100, ge=1, le=5000),
+    db: Session = Depends(get_db),
+):
+    try:
+        rows = (
+            db.query(LeadActivityModel, LeadModel)
+            .join(LeadModel, LeadModel.id == LeadActivityModel.lead_id)
+            .order_by(LeadActivityModel.created_at.desc(), LeadActivityModel.id.desc())
+            .limit(limit)
+            .all()
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to retrieve activities",
+        )
+
+    return [
+        GlobalActivityResponse(
+            id=activity.id,
+            lead_id=lead.id,
+            lead_name=lead.name,
+            company=lead.company,
+            activity_type=activity.activity_type,
+            activity_kind=activity.activity_kind,
+            outcome=activity.outcome,
+            notes=activity.notes,
+            tags=activity.tags or [],
+            occurred_at=activity.occurred_at,
+            created_at=activity.created_at,
+        )
+        for activity, lead in rows
+    ]
