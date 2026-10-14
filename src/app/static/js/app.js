@@ -2530,7 +2530,12 @@
       const now = new Date();
       occurredAt.value = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
     }
-    $("activity-modal").classList.add("open");
+    const activityModal = $("activity-modal");
+    activityModal.classList.toggle(
+      "with-lead-panel",
+      Boolean($("lead-drawer")?.classList.contains("open"))
+    );
+    activityModal.classList.add("open");
     const notes = form.querySelector('[name="notes"]');
     if (notes) notes.focus();
 
@@ -2539,9 +2544,7 @@
 
   function closeActivityModal() {
 
-    $("activity-modal")
-      .classList
-      .remove("open");
+    $("activity-modal").classList.remove("open", "with-lead-panel");
 
   }
 
