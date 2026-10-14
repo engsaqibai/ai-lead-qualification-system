@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>LeadPilot — AI Lead Qualification</title>
 
-    <link rel="stylesheet" href="/static/css/app.css?v=2">
+    <link rel="stylesheet" href="/static/css/app.css?v=3">
 
 </head>
 
@@ -1128,63 +1128,15 @@
 
         <div class="form-grid">
 
-          <div class="field">
-
-            <label>
-              Activity Type
-            </label>
-
-            <select
-              name="activity_type"
-              required>
-
-              <option value="call">
-                Call
-              </option>
-
-              <option value="email">
-                Email
-              </option>
-
-              <option value="meeting">
-                Meeting
-              </option>
-
-              <option value="note">
-                Note
-              </option>
-
-              <option value="other">
-                Other
-              </option>
-
-            </select>
-
+          <div class="field full">
+            <label>Notes</label>
+            <textarea
+              name="notes"
+              rows="5"
+              placeholder="Record the conversation, customer concerns, commitments and agreed next steps..."></textarea>
           </div>
-
-
-          <div class="field">
-            <label>
-              Date &amp; Time
-            </label>
-            <input type="datetime-local" name="occurred_at" required>
-          </div>
-
-          <div class="field">
-
-            <label>
-              Outcome
-            </label>
-
-            <input
-              name="outcome"
-              placeholder="Optional">
-
-          </div>
-
 
           <div class="field full">
-
             <label>Tags</label>
             <div class="activity-tag-editor">
               <div id="activity-tag-chips" class="activity-tag-chips" aria-live="polite"></div>
@@ -1195,24 +1147,31 @@
               <input type="hidden" name="tags" id="activity-tags-value">
               <div class="field-hint">Click a tag to insert #tag into Notes. Use × to remove it.</div>
             </div>
+          </div>
 
+          <div class="field">
+            <label>Activity Type</label>
+            <select name="activity_type" required>
+              <option value="call">Call</option>
+              <option value="email">Email</option>
+              <option value="meeting">Meeting</option>
+              <option value="note">Note</option>
+              <option value="other">Other</option>
+              <option value="demo">Demo</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Date &amp; Time</label>
+            <input type="datetime-local" name="occurred_at" required>
           </div>
 
           <div class="field full">
-
-            <label>
-              Notes
-            </label>
-
-            <textarea
-              name="notes"
-              rows="7"
-              placeholder="Record the conversation, customer concerns, commitments and agreed next steps..."></textarea>
-
+            <label>Outcome</label>
+            <input name="outcome" placeholder="Optional">
           </div>
 
         </div>
-
       </div>
 
 
